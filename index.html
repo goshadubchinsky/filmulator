@@ -129,6 +129,18 @@
             line-height: 1.35;
             text-align: center;
         }
+
+        .version-badge {
+            color: var(--accent);
+            background: rgba(0, 224, 138, 0.08);
+            border: 1px solid rgba(0, 224, 138, 0.22);
+            border-radius: 999px;
+            padding: 4px 9px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            font-variant-numeric: tabular-nums;
+        }
     </style>
 </head>
 <body>
@@ -137,12 +149,21 @@
     <div class="header">
         <h2>JS Filmulator POC</h2>
         <p>Linear-light pseudo film development with density response, developer depletion, diffusion, and adjacency effect.</p>
+        <div class="version-badge" id="versionBadge">version loading</div>
     </div>
 
     <input type="file" id="upload" accept="image/*">
     <canvas id="canvas" width="560" height="360"></canvas>
 
     <div class="controls">
+        <div class="control-group">
+            <div class="row">
+                <label for="filmWhiteBalance">Film White Balance</label>
+                <span class="value" id="filmWhiteBalanceValue">5500 K Â· daylight neutral</span>
+            </div>
+            <input type="range" id="filmWhiteBalance" min="2500" max="10000" step="100" value="5500">
+        </div>
+
         <div class="control-group">
             <div class="row">
                 <label for="exposureStops">Virtual Exposure</label>
@@ -201,7 +222,7 @@
     </div>
 
     <div class="status" id="status">Load an image to begin.</div>
-    <div class="note">This is still a browser POC, not a calibrated chemical or scanner model. The main correction is that the math now works in linear light and uses density-style response instead of power-mapping sRGB values directly.</div>
+    <div class="note">This is still a browser POC, not a calibrated chemical or scanner model. White balance is applied before exposure, depletion, diffusion, density response, and grain. Lower K behaves like tungsten-balanced film on a neutral source; higher K behaves like cool-light/shade-balanced film.</div>
 </div>
 
 <script>
@@ -209,8 +230,16 @@ const upload = document.getElementById('upload');
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d', { willReadFrequently: true });
 const statusDiv = document.getElementById('status');
+const versionBadge = document.getElementById('versionBadge');
+
+const APP_VERSION = 'v0.3.0-film-wb';
+const REFERENCE_WHITE_KELVIN = 5500;
+
+document.title = `JS Filmulator POC ${APP_VERSION}`;
+versionBadge.innerText = APP_VERSION;
 
 const controls = {
+    filmWhiteBalance: document.getElementById('filmWhiteBalance'),
     exposureStops: document.getElementById('exposureStops'),
     developmentGamma: document.getElementById('developmentGamma'),
     exhaustion: document.getElementById('exhaustion'),
@@ -221,6 +250,7 @@ const controls = {
 };
 
 const values = {
+    filmWhiteBalance: document.getElementById('filmWhiteBalanceValue'),
     exposureStops: document.getElementById('exposureStopsValue'),
     developmentGamma: document.getElementById('developmentGammaValue'),
     exhaustion: document.getElementById('exhaustionValue'),
@@ -295,6 +325,9 @@ Object.values(controls).forEach((slider) => {
 });
 
 function updateControlLabels() {
+    const filmK = parseInt(controls.filmWhiteBalance.value, 10);
+    values.filmWhiteBalance.innerText = `${filmK} K Â· ${describeFilmBalance(filmK)}`;
+
     const ev = parseFloat(controls.exposureStops.value);
     values.exposureStops.innerText = `${ev >= 0 ? '+' : ''}${ev.toFixed(1)} EV`;
     values.developmentGamma.innerText = parseFloat(controls.developmentGamma.value).toFixed(2);
@@ -339,6 +372,8 @@ function processImage(version) {
     const dst = outputImgData.data;
     const size = imgWidth * imgHeight;
 
+    const filmWhiteBalance = parseInt(controls.filmWhiteBalance.value, 10);
+    const wb = filmBalanceMultipliers(filmWhiteBalance);
     const exposureStops = parseFloat(controls.exposureStops.value);
     const exposureMultiplier = Math.pow(2, exposureStops);
     const developmentGamma = parseFloat(controls.developmentGamma.value);
@@ -356,9 +391,11 @@ function processImage(version) {
     // Work in linear light. Convert scene exposure into exposed-silver demand.
     // More exposure consumes more local developer; the exponential keeps the result bounded.
     for (let i = 0; i < size; i++) {
-        const r = linearR[i] * exposureMultiplier;
-        const g = linearG[i] * exposureMultiplier;
-        const b = linearB[i] * exposureMultiplier;
+        // Film white balance is applied before exposure and chemistry.
+        // The input is assumed to be neutral-balanced digital RGB.
+        const r = linearR[i] * wb.r * exposureMultiplier;
+        const g = linearG[i] * wb.g * exposureMultiplier;
+        const b = linearB[i] * wb.b * exposureMultiplier;
 
         const y = luminanceLinear(r, g, b);
         exposedLuma[i] = y;
@@ -387,9 +424,9 @@ function processImage(version) {
         const adjacency = (devBlur - devLocal) * adjacencyStrength;
         const availableDeveloper = clamp(devBlur + adjacency, 0.04, 1.25);
 
-        const rExp = linearR[i] * exposureMultiplier;
-        const gExp = linearG[i] * exposureMultiplier;
-        const bExp = linearB[i] * exposureMultiplier;
+        const rExp = linearR[i] * wb.r * exposureMultiplier;
+        const gExp = linearG[i] * wb.g * exposureMultiplier;
+        const bExp = linearB[i] * wb.b * exposureMultiplier;
 
         let r = developedDensityToPositive(rExp, availableDeveloper, developmentGamma);
         let g = developedDensityToPositive(gExp, availableDeveloper, developmentGamma);
@@ -418,7 +455,81 @@ function processImage(version) {
 
     ctx.putImageData(outputImgData, 0, 0);
     const elapsed = Math.round(performance.now() - start);
-    statusDiv.innerText = `Done in ${elapsed} ms`;
+    statusDiv.innerText = `Done in ${elapsed} ms Â· ${APP_VERSION}`;
+}
+
+function describeFilmBalance(kelvin) {
+    if (kelvin <= 3800) return 'tungsten film / cool cast';
+    if (kelvin < 5200) return 'warm-light film / slight cool cast';
+    if (kelvin <= 6000) return 'daylight neutral';
+    if (kelvin <= 7500) return 'cool-light film / warm cast';
+    return 'shade film / strong warm cast';
+}
+
+function filmBalanceMultipliers(filmKelvin) {
+    // A film balanced for a warmer illuminant, like 3200 K tungsten film,
+    // must be more blue-sensitive to render tungsten light neutral. On an already
+    // neutral digital source this creates a cooler cast. Higher balance values
+    // move in the opposite direction.
+    const ref = kelvinToLinearWhite(REFERENCE_WHITE_KELVIN);
+    const target = kelvinToLinearWhite(filmKelvin);
+
+    let r = ref.r / Math.max(target.r, 1e-6);
+    let g = ref.g / Math.max(target.g, 1e-6);
+    let b = ref.b / Math.max(target.b, 1e-6);
+
+    // Keep neutral luminance approximately stable so the slider changes chroma,
+    // not overall exposure.
+    const y = luminanceLinear(r, g, b);
+    const scale = 1.0 / Math.max(y, 1e-6);
+
+    return {
+        r: clamp(r * scale, 0.20, 4.00),
+        g: clamp(g * scale, 0.20, 4.00),
+        b: clamp(b * scale, 0.20, 4.00)
+    };
+}
+
+function kelvinToLinearWhite(kelvin) {
+    const rgb = kelvinToSrgbWhite(kelvin);
+    let r = srgbToLinear(rgb.r);
+    let g = srgbToLinear(rgb.g);
+    let b = srgbToLinear(rgb.b);
+
+    // Normalize each white point to equal luminance before taking ratios.
+    const y = luminanceLinear(r, g, b);
+    const scale = 1.0 / Math.max(y, 1e-6);
+
+    return {
+        r: r * scale,
+        g: g * scale,
+        b: b * scale
+    };
+}
+
+function kelvinToSrgbWhite(kelvin) {
+    // Fast blackbody-style RGB approximation, adequate for an artistic WB control.
+    // Input range is intentionally wider than the UI range for future tuning.
+    const t = clamp(kelvin, 1000, 40000) / 100;
+    let r;
+    let g;
+    let b;
+
+    if (t <= 66) {
+        r = 255;
+        g = 99.4708025861 * Math.log(t) - 161.1195681661;
+        b = t <= 19 ? 0 : 138.5177312231 * Math.log(t - 10) - 305.0447927307;
+    } else {
+        r = 329.698727446 * Math.pow(t - 60, -0.1332047592);
+        g = 288.1221695283 * Math.pow(t - 60, -0.0755148492);
+        b = 255;
+    }
+
+    return {
+        r: clamp(r / 255, 0, 1),
+        g: clamp(g / 255, 0, 1),
+        b: clamp(b / 255, 0, 1)
+    };
 }
 
 function developedDensityToPositive(linearExposure, developer, gamma) {
