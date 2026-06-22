@@ -5,268 +5,545 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JS Filmulator POC</title>
     <style>
+        :root {
+            color-scheme: dark;
+            --bg: #111214;
+            --panel: #1b1d21;
+            --panel-2: #23262b;
+            --text: #e6e6e6;
+            --muted: #9a9a9a;
+            --accent: #00e08a;
+            --border: #343842;
+        }
+
+        * { box-sizing: border-box; }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: #121212;
-            color: #e0e0e0;
+            background: var(--bg);
+            color: var(--text);
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 20px;
+            padding: 18px;
             margin: 0;
         }
-        h2 { margin-bottom: 5px; }
-        p { color: #888; font-size: 14px; margin-top: 0; text-align: center;}
+
+        h2 {
+            margin: 0 0 6px 0;
+            font-size: 22px;
+            letter-spacing: -0.02em;
+        }
+
+        p {
+            color: var(--muted);
+            font-size: 14px;
+            margin: 0;
+            text-align: center;
+            line-height: 1.35;
+        }
+
         .container {
             width: 100%;
-            max-width: 500px;
+            max-width: 560px;
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 14px;
         }
+
+        .header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding-top: 4px;
+        }
+
         canvas {
             width: 100%;
-            border-radius: 8px;
-            background: #1e1e1e;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            border-radius: 10px;
+            background: #191b1f;
+            border: 1px solid var(--border);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.38);
+            display: block;
         }
+
         .controls {
-            background: #1e1e1e;
-            padding: 15px;
-            border-radius: 8px;
+            background: var(--panel);
+            padding: 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 13px;
         }
+
         .control-group {
             display: flex;
             flex-direction: column;
-            gap: 5px;
+            gap: 6px;
         }
-        label { font-size: 14px; font-weight: 500; }
+
+        .row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 12px;
+        }
+
+        label {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .value {
+            color: var(--muted);
+            font-size: 12px;
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
+
         input[type="range"] { width: 100%; }
+
         input[type="file"] {
-            background: #2a2a2a;
+            width: 100%;
+            background: var(--panel-2);
             color: #fff;
-            padding: 10px;
-            border-radius: 6px;
-            border: none;
+            padding: 11px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
             cursor: pointer;
         }
+
         .status {
             text-align: center;
             font-size: 12px;
-            color: #00ff88;
+            color: var(--accent);
+            min-height: 16px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .note {
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.35;
+            text-align: center;
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>JS Filmulator Proof of Concept</h2>
-    <p>Pure JavaScript chemical stand-development simulation</p>
-    
+    <div class="header">
+        <h2>JS Filmulator POC</h2>
+        <p>Linear-light pseudo film development with density response, developer depletion, diffusion, and adjacency effect.</p>
+    </div>
+
     <input type="file" id="upload" accept="image/*">
-    <canvas id="canvas"></canvas>
-    
+    <canvas id="canvas" width="560" height="360"></canvas>
+
     <div class="controls">
         <div class="control-group">
-            <label>Virtual Exposure (Input Boost)</label>
-            <input type="range" id="exposure" min="0.5" max="3.0" step="0.1" value="1.0">
+            <div class="row">
+                <label for="exposureStops">Virtual Exposure</label>
+                <span class="value" id="exposureStopsValue">0.0 EV</span>
+            </div>
+            <input type="range" id="exposureStops" min="-2.0" max="2.0" step="0.1" value="0.0">
         </div>
+
         <div class="control-group">
-            <label>Developer Depletion (Highlight Compression)</label>
-            <input type="range" id="depletionRate" min="0.0" max="2.0" step="0.1" value="0.8">
+            <div class="row">
+                <label for="developmentGamma">Development Activity</label>
+                <span class="value" id="developmentGammaValue">1.00</span>
+            </div>
+            <input type="range" id="developmentGamma" min="0.40" max="2.00" step="0.05" value="1.00">
         </div>
+
         <div class="control-group">
-            <label>Chemical Diffusion (Local Edge Contrast)</label>
-            <input type="range" id="diffusionRadius" min="1" max="15" step="1" value="5">
+            <div class="row">
+                <label for="exhaustion">Developer Exhaustion</label>
+                <span class="value" id="exhaustionValue">1.40</span>
+            </div>
+            <input type="range" id="exhaustion" min="0.00" max="4.00" step="0.05" value="1.40">
+        </div>
+
+        <div class="control-group">
+            <div class="row">
+                <label for="diffusionRadius">Diffusion Radius</label>
+                <span class="value" id="diffusionRadiusValue">8 px</span>
+            </div>
+            <input type="range" id="diffusionRadius" min="0" max="32" step="1" value="8">
+        </div>
+
+        <div class="control-group">
+            <div class="row">
+                <label for="adjacency">Adjacency / Edge Effect</label>
+                <span class="value" id="adjacencyValue">0.75</span>
+            </div>
+            <input type="range" id="adjacency" min="0.00" max="2.00" step="0.05" value="0.75">
+        </div>
+
+        <div class="control-group">
+            <div class="row">
+                <label for="printContrast">Print Contrast</label>
+                <span class="value" id="printContrastValue">1.10</span>
+            </div>
+            <input type="range" id="printContrast" min="0.60" max="1.80" step="0.05" value="1.10">
+        </div>
+
+        <div class="control-group">
+            <div class="row">
+                <label for="grain">Density-Linked Grain</label>
+                <span class="value" id="grainValue">0.010</span>
+            </div>
+            <input type="range" id="grain" min="0.000" max="0.060" step="0.002" value="0.010">
         </div>
     </div>
-    <div class="status" id="status">Ready</div>
+
+    <div class="status" id="status">Load an image to begin.</div>
+    <div class="note">This is still a browser POC, not a calibrated chemical or scanner model. The main correction is that the math now works in linear light and uses density-style response instead of power-mapping sRGB values directly.</div>
 </div>
 
 <script>
 const upload = document.getElementById('upload');
 const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
+const ctx = canvas.getContext('2d', { willReadFrequently: true });
 const statusDiv = document.getElementById('status');
 
-// Sliders
-const exposureSlider = document.getElementById('exposure');
-const depletionSlider = document.getElementById('depletionRate');
-const diffusionSlider = document.getElementById('diffusionRadius');
+const controls = {
+    exposureStops: document.getElementById('exposureStops'),
+    developmentGamma: document.getElementById('developmentGamma'),
+    exhaustion: document.getElementById('exhaustion'),
+    diffusionRadius: document.getElementById('diffusionRadius'),
+    adjacency: document.getElementById('adjacency'),
+    printContrast: document.getElementById('printContrast'),
+    grain: document.getElementById('grain')
+};
+
+const values = {
+    exposureStops: document.getElementById('exposureStopsValue'),
+    developmentGamma: document.getElementById('developmentGammaValue'),
+    exhaustion: document.getElementById('exhaustionValue'),
+    diffusionRadius: document.getElementById('diffusionRadiusValue'),
+    adjacency: document.getElementById('adjacencyValue'),
+    printContrast: document.getElementById('printContrastValue'),
+    grain: document.getElementById('grainValue')
+};
 
 let originalImgData = null;
+let linearR = null;
+let linearG = null;
+let linearB = null;
 let imgWidth = 0;
 let imgHeight = 0;
+let processTimer = null;
+let processVersion = 0;
 
-// Load uploaded image onto Canvas
-upload.addEventListener('change', (e) => {
-    const file = e.target.files[0];
+paintEmptyCanvas();
+updateControlLabels();
+
+upload.addEventListener('change', (event) => {
+    const file = event.target.files[0];
     if (!file) return;
-    
+
     const reader = new FileReader();
-    reader.onload = (event) => {
+
+    reader.onload = (readerEvent) => {
         const img = new Image();
+
         img.onload = () => {
-            // Downscale slightly to keep pure JavaScript loops fast
-            const maxDimension = 800; 
-            let w = img.width;
-            let h = img.height;
+            const maxDimension = 1000;
+            let w = img.naturalWidth || img.width;
+            let h = img.naturalHeight || img.height;
+
             if (w > maxDimension || h > maxDimension) {
-                if (w > h) { h = Math.round((h * maxDimension) / w); w = maxDimension; }
-                else { w = Math.round((w * maxDimension) / h); h = maxDimension; }
+                if (w >= h) {
+                    h = Math.round((h * maxDimension) / w);
+                    w = maxDimension;
+                } else {
+                    w = Math.round((w * maxDimension) / h);
+                    h = maxDimension;
+                }
             }
-            
+
             canvas.width = w;
             canvas.height = h;
             imgWidth = w;
             imgHeight = h;
-            
+
             ctx.drawImage(img, 0, 0, w, h);
             originalImgData = ctx.getImageData(0, 0, w, h);
-            processImage();
+            buildLinearSourceBuffers(originalImgData);
+            scheduleProcess();
         };
-        img.src = event.target.result;
+
+        img.onerror = () => {
+            statusDiv.innerText = 'Could not load this image.';
+        };
+
+        img.src = readerEvent.target.result;
     };
+
     reader.readAsDataURL(file);
 });
 
-// Re-process image when sliders move
-[exposureSlider, depletionSlider, diffusionSlider].forEach(slider => {
+Object.values(controls).forEach((slider) => {
     slider.addEventListener('input', () => {
-        if (originalImgData) processImage();
+        updateControlLabels();
+        if (originalImgData) scheduleProcess();
     });
 });
 
-// The Core Filmulator Chemistry Math Engine
-function processImage() {
-    statusDiv.innerText = "Processing Chemistry...";
-    
-    // Wrap processing in a small timeout to let UI update
-    setTimeout(() => {
-        const src = originalImgData.data;
-        const outputImgData = ctx.createImageData(imgWidth, imgHeight);
-        const dst = outputImgData.data;
-        
-        const size = imgWidth * imgHeight;
-        
-        // Get current parameters
-        const exposure = parseFloat(exposureSlider.value);
-        const depletionRate = parseFloat(depletionSlider.value);
-        const radius = parseInt(diffusionSlider.value);
-
-        // Allocating grids for our simulation
-        const brightnessGrid = new Float32Array(size);
-        let developerGrid = new Float32Array(size);
-        let blurredDevGrid = new Float32Array(size);
-
-        // PASS 1: Calculate Light Brightness & Initial Developer Depletion
-        for (let i = 0; i < size; i++) {
-            const idx = i * 4;
-            // Normalize RGB to 0.0 - 1.0 range early
-            const r = src[idx] / 255;
-            const g = src[idx+1] / 255;
-            const b = src[idx+2] / 255;
-
-            // Simple perceived luminance
-            const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-            brightnessGrid[i] = luminance;
-
-            // Deplete developer based on light intensity
-            developerGrid[i] = Math.max(0.05, 1.0 - (luminance * depletionRate));
-        }
-
-        // PASS 2: Chemical Diffusion (Fast Sliding Window Box Blur)
-        boxBlur2D(developerGrid, blurredDevGrid, imgWidth, imgHeight, radius);
-
-        // PASS 3: Development & Tone Mapping Assembly
-        for (let i = 0; i < size; i++) {
-            const idx = i * 4;
-            
-            const localDeveloper = blurredDevGrid[i];
-            
-            const r = src[idx] / 255;
-            const g = src[idx+1] / 255;
-            const b = src[idx+2] / 255;
-
-            let expR = r * exposure;
-            let expG = g * exposure;
-            let expB = b * exposure;
-
-            // Non-linear development: depleted chemistry compresses high values
-            const compressionPower = 1.0 / localDeveloper; 
-            
-            let outR = Math.pow(expR, compressionPower);
-            let outG = Math.pow(expG, compressionPower);
-            let outB = Math.pow(expB, compressionPower);
-
-            // Apply tone curve
-            dst[idx]   = filmShoulder(outR);
-            dst[idx+1] = filmShoulder(outG);
-            dst[idx+2] = filmShoulder(outB);
-            dst[idx+3] = 255; // Alpha
-        }
-
-        ctx.putImageData(outputImgData, 0, 0);
-        statusDiv.innerText = "Done";
-    }, 30);
+function updateControlLabels() {
+    const ev = parseFloat(controls.exposureStops.value);
+    values.exposureStops.innerText = `${ev >= 0 ? '+' : ''}${ev.toFixed(1)} EV`;
+    values.developmentGamma.innerText = parseFloat(controls.developmentGamma.value).toFixed(2);
+    values.exhaustion.innerText = parseFloat(controls.exhaustion.value).toFixed(2);
+    values.diffusionRadius.innerText = `${parseInt(controls.diffusionRadius.value, 10)} px`;
+    values.adjacency.innerText = parseFloat(controls.adjacency.value).toFixed(2);
+    values.printContrast.innerText = parseFloat(controls.printContrast.value).toFixed(2);
+    values.grain.innerText = parseFloat(controls.grain.value).toFixed(3);
 }
 
-// A proper extended Reinhard tone mapping curve
-function filmShoulder(x) {
-    // Standard Reinhard curve
-    const mapped = x / (1.0 + x);
-    
-    // Add baseline gamma contrast bump
-    const contrastMapped = Math.pow(mapped, 1.2) * 1.1;
-    
-    return Math.min(255, Math.max(0, contrastMapped * 255));
+function scheduleProcess() {
+    clearTimeout(processTimer);
+    processVersion++;
+    const version = processVersion;
+    statusDiv.innerText = 'Processing...';
+
+    processTimer = setTimeout(() => {
+        if (version !== processVersion) return;
+        processImage(version);
+    }, 35);
 }
 
-// Optimized O(N) Sliding Window Box Blur
+function buildLinearSourceBuffers(imageData) {
+    const src = imageData.data;
+    const size = imgWidth * imgHeight;
+
+    linearR = new Float32Array(size);
+    linearG = new Float32Array(size);
+    linearB = new Float32Array(size);
+
+    for (let i = 0; i < size; i++) {
+        const idx = i * 4;
+        linearR[i] = srgbToLinear(src[idx] / 255);
+        linearG[i] = srgbToLinear(src[idx + 1] / 255);
+        linearB[i] = srgbToLinear(src[idx + 2] / 255);
+    }
+}
+
+function processImage(version) {
+    const start = performance.now();
+    const outputImgData = ctx.createImageData(imgWidth, imgHeight);
+    const dst = outputImgData.data;
+    const size = imgWidth * imgHeight;
+
+    const exposureStops = parseFloat(controls.exposureStops.value);
+    const exposureMultiplier = Math.pow(2, exposureStops);
+    const developmentGamma = parseFloat(controls.developmentGamma.value);
+    const exhaustion = parseFloat(controls.exhaustion.value);
+    const diffusionRadius = parseInt(controls.diffusionRadius.value, 10);
+    const adjacencyStrength = parseFloat(controls.adjacency.value);
+    const printContrast = parseFloat(controls.printContrast.value);
+    const grainAmount = parseFloat(controls.grain.value);
+
+    const localDeveloper = new Float32Array(size);
+    const diffusedDeveloper = new Float32Array(size);
+    const exposedLuma = new Float32Array(size);
+
+    // PASS 1
+    // Work in linear light. Convert scene exposure into exposed-silver demand.
+    // More exposure consumes more local developer; the exponential keeps the result bounded.
+    for (let i = 0; i < size; i++) {
+        const r = linearR[i] * exposureMultiplier;
+        const g = linearG[i] * exposureMultiplier;
+        const b = linearB[i] * exposureMultiplier;
+
+        const y = luminanceLinear(r, g, b);
+        exposedLuma[i] = y;
+
+        const silverDemand = 1.0 - Math.exp(-1.25 * y);
+        localDeveloper[i] = Math.exp(-exhaustion * silverDemand);
+    }
+
+    // PASS 2
+    // Approximate lateral chemical diffusion with a separable box blur.
+    // This is not a full PDE diffusion solver, but it is O(N) and stable on mobile Safari.
+    boxBlur2D(localDeveloper, diffusedDeveloper, imgWidth, imgHeight, diffusionRadius);
+
+    // PASS 3
+    // Convert exposure + local developer availability into developed density.
+    // Then map density back to a positive display image through a simple print curve.
+    for (let i = 0; i < size; i++) {
+        const idx = i * 4;
+
+        const devLocal = localDeveloper[i];
+        const devBlur = diffusedDeveloper[i];
+
+        // Adjacency effect: high-exposure zones near low-exposure zones borrow developer;
+        // low-exposure zones near high-exposure zones lose local activity. This creates
+        // restrained edge contrast similar to stand-development adjacency effects.
+        const adjacency = (devBlur - devLocal) * adjacencyStrength;
+        const availableDeveloper = clamp(devBlur + adjacency, 0.04, 1.25);
+
+        const rExp = linearR[i] * exposureMultiplier;
+        const gExp = linearG[i] * exposureMultiplier;
+        const bExp = linearB[i] * exposureMultiplier;
+
+        let r = developedDensityToPositive(rExp, availableDeveloper, developmentGamma);
+        let g = developedDensityToPositive(gExp, availableDeveloper, developmentGamma);
+        let b = developedDensityToPositive(bExp, availableDeveloper, developmentGamma);
+
+        // Density-linked grain: strongest around middle densities, weaker near pure black/white.
+        if (grainAmount > 0) {
+            const grainShape = Math.sqrt(clamp((r + g + b) / 3, 0, 1) * clamp(1 - (r + g + b) / 3, 0, 1) + 0.02);
+            const n = hashNoise(i) * grainAmount * grainShape;
+            r += n;
+            g += n;
+            b += n;
+        }
+
+        r = printCurve(r, printContrast);
+        g = printCurve(g, printContrast);
+        b = printCurve(b, printContrast);
+
+        dst[idx] = linearToByte(r);
+        dst[idx + 1] = linearToByte(g);
+        dst[idx + 2] = linearToByte(b);
+        dst[idx + 3] = originalImgData.data[idx + 3];
+    }
+
+    if (version !== processVersion) return;
+
+    ctx.putImageData(outputImgData, 0, 0);
+    const elapsed = Math.round(performance.now() - start);
+    statusDiv.innerText = `Done in ${elapsed} ms`;
+}
+
+function developedDensityToPositive(linearExposure, developer, gamma) {
+    // Exposure-to-density approximation.
+    // log2(1 + kE) gives a toe-like response at low exposure and a shoulder tendency at high exposure.
+    // Developer availability scales the effective development rate.
+    const filmSpeed = 5.0;
+    const shoulderSoftness = 1.35;
+
+    const logExposure = Math.log2(1.0 + filmSpeed * Math.max(0, linearExposure));
+    const densityDrive = gamma * developer * logExposure;
+
+    // Bounded density formation. This behaves like a soft H-D shoulder.
+    const densityNorm = 1.0 - Math.exp(-densityDrive / shoulderSoftness);
+
+    return clamp(densityNorm, 0, 1);
+}
+
+function printCurve(x, contrast) {
+    // Positive print/display curve.
+    // This is deliberately simple: normalize the toe slightly, then apply a smooth sigmoid contrast.
+    let v = clamp((x - 0.015) / 0.94, 0, 1);
+
+    const c = 1.0 + (contrast - 1.0) * 1.7;
+    const denominator = 2.0 * Math.tanh(c * 0.5);
+    v = 0.5 + Math.tanh((v - 0.5) * c) / denominator;
+
+    return clamp(v, 0, 1);
+}
+
 function boxBlur2D(src, dst, w, h, radius) {
-    const temp = new Float32Array(w * h);
+    if (radius <= 0) {
+        dst.set(src);
+        return;
+    }
 
-    // Horizontal Pass
+    const temp = new Float32Array(w * h);
+    const windowSize = radius * 2 + 1;
+
     for (let y = 0; y < h; y++) {
         const rowOffset = y * w;
         let sum = 0;
-        
+
         for (let k = -radius; k <= radius; k++) {
-            const nx = Math.min(Math.max(k, 0), w - 1);
-            sum += src[rowOffset + nx];
+            const x = clampInt(k, 0, w - 1);
+            sum += src[rowOffset + x];
         }
-        
+
         for (let x = 0; x < w; x++) {
-            temp[rowOffset + x] = sum / (radius * 2 + 1);
-            
-            const nextX = Math.min(x + radius + 1, w - 1);
-            const prevX = Math.max(x - radius, 0);
-            
-            sum += src[rowOffset + nextX] - src[rowOffset + prevX];
+            temp[rowOffset + x] = sum / windowSize;
+
+            const removeX = clampInt(x - radius, 0, w - 1);
+            const addX = clampInt(x + radius + 1, 0, w - 1);
+            sum += src[rowOffset + addX] - src[rowOffset + removeX];
         }
     }
 
-    // Vertical Pass
     for (let x = 0; x < w; x++) {
         let sum = 0;
-        
+
         for (let k = -radius; k <= radius; k++) {
-            const ny = Math.min(Math.max(k, 0), h - 1);
-            sum += temp[ny * w + x];
+            const y = clampInt(k, 0, h - 1);
+            sum += temp[y * w + x];
         }
-        
+
         for (let y = 0; y < h; y++) {
-            dst[y * w + x] = sum / (radius * 2 + 1);
-            
-            const nextY = Math.min(y + radius + 1, h - 1);
-            const prevY = Math.max(y - radius, 0);
-            
-            sum += temp[nextY * w + x] - temp[prevY * w + x];
+            dst[y * w + x] = sum / windowSize;
+
+            const removeY = clampInt(y - radius, 0, h - 1);
+            const addY = clampInt(y + radius + 1, 0, h - 1);
+            sum += temp[addY * w + x] - temp[removeY * w + x];
         }
     }
+}
+
+function srgbToLinear(x) {
+    if (x <= 0.04045) return x / 12.92;
+    return Math.pow((x + 0.055) / 1.055, 2.4);
+}
+
+function linearToSrgb(x) {
+    x = clamp(x, 0, 1);
+    if (x <= 0.0031308) return 12.92 * x;
+    return 1.055 * Math.pow(x, 1.0 / 2.4) - 0.055;
+}
+
+function linearToByte(x) {
+    return Math.round(linearToSrgb(x) * 255);
+}
+
+function luminanceLinear(r, g, b) {
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function clamp(x, min, max) {
+    return Math.min(max, Math.max(min, x));
+}
+
+function clampInt(x, min, max) {
+    return Math.min(max, Math.max(min, x | 0));
+}
+
+function hashNoise(i) {
+    // Deterministic signed noise in roughly [-0.5, 0.5].
+    let x = i + 0x6D2B79F5;
+    x = Math.imul(x ^ (x >>> 15), x | 1);
+    x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
+    return (((x ^ (x >>> 14)) >>> 0) / 4294967295) - 0.5;
+}
+
+function paintEmptyCanvas() {
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.fillStyle = '#191b1f';
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.strokeStyle = '#343842';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
+
+    ctx.fillStyle = '#9a9a9a';
+    ctx.font = '15px -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Upload an image', w / 2, h / 2);
 }
 </script>
 
