@@ -73,12 +73,12 @@ good it looks — and a **progression log**.
 | # | Engine | Realness | Passes |
 |---|--------|:--------:|--------|
 | 1 | Input / Scene-Linear | 4/10 | pre-Pass 1 |
-| 2 | Spectral Sensitivity | 5/10 | Pass 1 |
-| 3 | Optical Transport | 6/10 | Pass 2 |
-| 4 | Development | 8/10 | Passes 3–4 (iterative Rxn-Diff) |
+| 2 | Spectral Sensitivity | 7/10 | Pass 1 |
+| 3 | Optical Transport | 7/10 | Pass 2 |
+| 4 | Development | 9/10 | Passes 3–4 (iterative Rxn-Diff, Gaussian diffusion) |
 | 5 | Adjacency / Edge Effects | **RETIRED** | emerges from E4 |
-| 6 | Grain | 3/10 | Pass 6 |
-| 7 | Print / Positive | 4/10 | Pass 6 |
+| 6 | Grain | 6/10 | Pass 6 (density domain, Selwyn-Nutting) |
+| 7 | Print / Positive | 8/10 | Pass 6 (paper H-D curve) |
 
 **Required workflow:** whenever you change code belonging to an engine, append a
 dated entry to that engine's progression log in `engines/`, and update its

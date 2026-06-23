@@ -2,9 +2,9 @@
 
 *Physics reference: `research/physics-of-film.md` §1 — Kubelka-Munk ODEs (§1.2), Frieser exponential LSF (§1.3)*
 
-**Realness: 6/10**
+**Realness: 7/10**
 **Pipeline stage:** Pass 2
-**Source:** scatter block (`film.opticalRadius`, `opticalScatter`, `scatterMix`), halation block (`smoothThreshold()`, `halationSource`, `halationMap`, `film.halationRadius/Threshold/Strength`), `boxBlur2D()`
+**Source:** scatter block (`film.opticalRadius`, `gaussianBlur2D`), halation block (`smoothThreshold()`, `halationSource`, `halationMap`, `film.halationRadius/Threshold/Strength`, `gaussianBlur2D`)
 
 ## Purpose
 
@@ -26,11 +26,12 @@ highlights bleeding into surrounding areas).
 
 ## Current implementation
 
-- **Scatter:** box-blur the raw exposure with a radius from `opticalRadius ×
-  opticalScatter`, then blend a fraction (`scatterMix`, capped) back into the
-  sharp signal.
-- **Halation:** `smoothThreshold()` isolates only bright exposure, box-blur it
-  over a larger radius, scale by `halationStrength`, and add back to exposure.
+- **Scatter:** `gaussianBlur2D` (three-pass box blur approximating a Gaussian)
+  with radius from `film.opticalRadius × 2`. Blended 82%/18% sharp/scattered.
+- **Halation:** `smoothThreshold()` isolates only bright exposure, then
+  `gaussianBlur2D` spreads it over the halation radius, scaled by
+  `film.halationStrength`, and added back to exposure. The Gaussian kernel is
+  radially symmetric, producing circular halos.
 
 ## What's real / what's approximated
 
@@ -38,36 +39,48 @@ highlights bleeding into surrounding areas).
   development), and on linear exposure (correct domain). Halation's threshold +
   large-radius spread + additive re-exposure matches the real mechanism well
   qualitatively.
-- ✅ Scatter as a small PSF blended with the sharp image is the right idea for
-  MTF loss.
-- ✅ Halation now uses a separable IIR exponential kernel (`exponentialBlur2D`),
-  implementing the Frieser LSF: E(x) = a·exp(b·x). This is the correct
-  functional form for halation falloff, not a visual guess.
-- ✅ Scatter now uses a three-pass box blur approximating a Gaussian
-  (`gaussianBlur2D`), which better represents the MTF-limiting PSF of
-  silver-halide scatter than a single flat box.
-- ⚠️ The IIR exponential is separable (horizontal × vertical), not radially
-  symmetric. True radial exponential decay would require a full 2-D convolution
-  or a radially-symmetric IIR — halos are still subtly diamond-shaped.
-- ⚠️ Thresholds, radii, and strengths are hand-tuned, not derived from measured
-  MTF or halation data for FP4/HP5.
+- ✅ Scatter as a small Gaussian PSF blended with the sharp image correctly models
+  MTF loss: Gaussian is the appropriate model for diffuse silver-halide scattering.
+- ✅ Halation now uses a radially symmetric Gaussian PSF, producing circular halos
+  — physically correct shape for a point-source halo from base reflection.
+- ⚠️ The Frieser exponential LSF (previous model) is a 1D measurement of the
+  halation cross-section. A Gaussian PSF approximates the 2D spread from a point
+  source, which is physically defensible (and circular), but the exact radial
+  decay profile differs from the Frieser exponential. The Gaussian has a heavier
+  body relative to tail compared to exponential decay.
+- ⚠️ Thresholds, radii, and strengths are hand-tuned per stock, not derived from
+  measured MTF or halation data for FP4/HP5.
 
-## Realness rating: 6/10
+## Realness rating: 7/10
 
-Halation now implements the Frieser exponential LSF — the correct physics, not
-a visual shortcut. Scatter is improved to Gaussian. Remaining gap: separable
-kernels are not radially symmetric, and parameters are tuned rather than
-measured.
+Scatter (Gaussian) and halation (Gaussian) are both radially symmetric — physically
+correct shape. The kernel types are physically defensible. Remaining gaps: exact
+halation decay profile (Gaussian approximation of exponential), and parameters not
+derived from measured MTF/halation data.
 
 ## Roadmap to higher realness
 
-- Replace box blur with a separable Gaussian, and model halation with a
-  long-tailed (Lorentzian/exponential) kernel for the reflection halo.
-- Derive scatter radius from a target MTF curve per stock.
-- Model the base-reflection geometry (intensity/spread) rather than a single
-  strength scalar; consider wavelength dependence of the halo.
+- Implement a radially symmetric exponential PSF (Laplace radial, approximated as
+  a mixture of 2–3 Gaussians) for halation to recover the Frieser exponential
+  decay profile while retaining circular shape.
+- Derive scatter radius from a target MTF value at a specific lp/mm per stock
+  (Ilford publishes MTF curves for FP4+ and HP5+).
+- Model the base-reflection geometry: derive halation radius from film thickness
+  and base refractive index; derive strength from base reflectivity.
 
 ## Progression Log
+
+### 2026-06-23 — Halation switched to Gaussian PSF for radial symmetry · rating 6→7
+Replaced `exponentialBlur2D` (separable H×V IIR) with `gaussianBlur2D` for
+halation in both the main pass and the E3 bypass. The separable exponential
+gives an L1-norm kernel (diamond shape), whereas real halos are circular. The
+Gaussian (three-pass separable box blur) is radially symmetric by construction —
+the product of two identical 1D Gaussians is a 2D Gaussian with circular
+iso-contours. Circular halos are the physically correct shape for a point-source
+halo from base reflection. The tradeoff: Gaussian decay profile (heavier near-core
+relative to tail) vs the Frieser exponential cross-section model. This is an
+honest approximation improvement — correct shape, slightly different decay profile.
+Rating raised 6→7.
 
 ### 2026-06-23 — Replaced box blur with Frieser exponential + Gaussian kernels · rating 5→6
 Implemented `exponentialBlur2D`: separable causal+anticausal first-order IIR

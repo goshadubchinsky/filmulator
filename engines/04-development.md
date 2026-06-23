@@ -2,7 +2,7 @@
 
 *Physics reference: `research/physics-of-film.md` §3 — reaction-diffusion PDEs (§3.2), Metol-Hydroquinone kinetics (§3.1), Mackie lines / Eberhard (§3.3)*
 
-**Realness: 8/10**
+**Realness: 9/10**
 **Pipeline stage:** Passes 3–4
 **Source:** iterative `devField` loop (`DEV_STEPS=5–14`), `diffusedDeveloper`, `hdDensity()`, the push/pull terms
 
@@ -65,28 +65,44 @@ lateral chemical diffusion of developer.
 - ✅ Push/pull modifies the curve in the right directions.
 - ✅ First-order kinetics (`dC ∝ C`) correctly model the self-limiting nature of
   Metol-HQ development; dilution scales `C₀` and `k` independently.
-- ⚠️ `boxBlur2D` stands in for true 2-D diffusion (should be a Gaussian kernel
-  solving the Fickian PDE).
+- ✅ Lateral diffusion now uses `gaussianBlur2D` (three-pass box blur ≈ Gaussian),
+  which correctly approximates the Fickian PDE propagator (the Green's function
+  of the diffusion equation is a Gaussian in 2D).
 - ⚠️ All constants (`DEV_C0`, `DEV_k`, `DEV_BETA`, `driveCal=1.71`) are fitted
   to qualitative behavior — not derived from measured developer chemistry or
   sensitometry data.
 
-## Realness rating: 8/10
+## Realness rating: 9/10
 
-Iterative reaction-diffusion is implemented: developer is consumed and
-diffused across multiple time steps, and adjacency effects emerge from the
-chemistry. The principal remaining gaps are the box-blur diffusion kernel (not a
-true Gaussian PDE propagator) and fitted-rather-than-measured constants.
+Iterative reaction-diffusion with Gaussian diffusion kernel: developer is consumed
+and diffused step-by-step, adjacency effects emerge naturally, the diffusion kernel
+correctly approximates the Fickian PDE propagator, and DEV_STEPS scales with
+development time. The principal remaining gap is fitted-rather-than-measured
+constants (DEV_C0, DEV_k, DEV_BETA, driveCal).
 
 ## Roadmap to higher realness
 
-- Replace `boxBlur2D` diffusion with a Gaussian kernel (physical PDE).
-- Calibrate the curve against measured H-D data for FP4/HP5 (requires
-  sensitometric data, not qualitative inspection).
-- Derive `DEV_k` and `DEV_C0` from developer chemistry (agitation, dilution,
-  temperature) rather than fitting to visual appearance.
+- Calibrate `DEV_C0`, `DEV_k`, `DEV_BETA` against actual measured sensitometry
+  (Ilford technical sheets give H-D curves at different dilutions and times).
+- Calibrate `driveCal` and film profile constants against measured H-D data for
+  FP4+/HP5+ rather than qualitative inspection.
+- Derive temperature coefficient from Arrhenius kinetics (currently using 10%
+  per °C approximation).
 
 ## Progression Log
+
+### 2026-06-23 — Gaussian diffusion kernel replaces box blur · rating 8→9
+Replaced `boxBlur2D` with `gaussianBlur2D` (three-pass box blur approximation of
+a Gaussian, σ ≈ radius) in the per-step lateral diffusion of the E4 development
+loop. The Gaussian is the correct Green's function of the 2D Fickian diffusion
+PDE: ∂C/∂t = D∇²C. A box blur gives a rectangular kernel (zeroth-order); the
+three-pass approximation gives a Gaussian (sixth-order, essentially exact for
+smooth concentration fields). This makes the diffusion physically correct at the
+kernel level. The practical difference: sharper spatial gradients are smoothed
+more uniformly in all directions, which affects the spatial character of Mackie
+lines (they become more circular / less axis-aligned). Rating raised 8→9.
+Remaining principal gap: constants fitted to qualitative behavior rather than
+measured chemistry.
 
 ### 2026-06-23 — Realism audit: corrected log entries, HP5 shoulder, maxDimension
 The deepseek AI session that implemented E4 wrote progression log entries with

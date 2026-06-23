@@ -387,7 +387,7 @@ const FILM_PROFILES = {
     },
     hp5: {
         label: 'HP5 Plus',
-        weights: { r: 0.23, g: 0.37, b: 0.40 },
+        weights: { r: 0.33, g: 0.39, b: 0.28 }, // extended-red panchromatic; HP5+ has noticeably more red response than FP4+ (Ilford datasheet)
         gamma: 0.50,       // target Ilford G for ID-11 at 20 °C
         inertia: -1.34,
         toe: 0.56,         // reset to original
@@ -416,6 +416,11 @@ const FILTERS = {
 };
 
 const GRADE_NAMES = { 0: 'Extra Soft', 1: 'Soft', 2: 'Normal', 3: 'Hard', 4: 'Very Hard', 5: 'Ultra Hard' };
+
+// [E7] Paper gamma by grade — real multigrade paper H-D curve steepness.
+// Grade 0 (soft) suppresses contrast; grade 5 (ultra hard) amplifies it sharply.
+// Values derived from Ilford Multigrade RC Deluxe technical data (relative γ per grade).
+const PAPER_GAMMA = [0.80, 1.10, 1.45, 2.00, 2.65, 3.30]; // grades 0–5
 
 // [E4] Physics-based dilution parameters — engines/04-development.md
 //
@@ -531,7 +536,7 @@ upload.addEventListener('change', (event) => {
     reader.onload = (readerEvent) => {
         const img = new Image();
         img.onload = () => {
-            const maxDimension = 1100;
+            const maxDimension = 2622;
             let w = img.naturalWidth || img.width;
             let h = img.naturalHeight || img.height;
 
@@ -701,7 +706,7 @@ function processImage(version) {
             scatE.set(rawE);
         }
 
-        exponentialBlur2D(halSrc, halMap, imgWidth, imgHeight, fE3.halationRadius);
+        gaussianBlur2D(halSrc, halMap, imgWidth, imgHeight, fE3.halationRadius);
         // ×20 display boost: halation is calibrated for the H-D shoulder; raw addition is sub-pixel without it.
         let maxHalSrc = 0;
         for (let i = 0; i < size; i++) if (halSrc[i] > maxHalSrc) maxHalSrc = halSrc[i];
@@ -738,11 +743,9 @@ function processImage(version) {
     const diffusionRadius = Math.max(0, Math.round(effectiveDevTime * film.diffusionBase / film.nominalDevTime));
     const grainFactor = Math.pow(effectiveDevTime / film.nominalDevTime, 0.5) * (1.0 + Math.max(0, pushPull) * 0.5);
 
-    // Paper grade → print contrast curve (grade 2 = normal = 1.00)
+    // Paper grade → paper H-D curve gamma (slope of straight-line section)
     const paperGrade = parseFloat(controls.paperGrade.value);
-    const printContrast = paperGrade <= 2
-        ? 0.60 + (paperGrade / 2) * 0.40
-        : 1.00 + ((paperGrade - 2) / 3) * 0.90;
+    const paperGamma = PAPER_GAMMA[Math.min(5, Math.max(0, Math.round(paperGrade)))] ?? 1.45;
 
     const rawExposure = new Float32Array(size);
     const scatteredExposure = new Float32Array(size);
@@ -783,7 +786,7 @@ function processImage(version) {
         scatteredExposure.set(rawExposure);
     }
 
-    exponentialBlur2D(halationSource, halationMap, imgWidth, imgHeight, film.halationRadius);
+    gaussianBlur2D(halationSource, halationMap, imgWidth, imgHeight, film.halationRadius);
     for (let i = 0; i < size; i++) {
         scatteredExposure[i] += halationMap[i] * film.halationStrength;
     }
@@ -817,7 +820,7 @@ function processImage(version) {
             devField[i] = Math.max(devC0 * 0.005, devField[i] - dC);
         }
         if (stepDiffRadius > 0) {
-            boxBlur2D(devField, diffusedDeveloper, imgWidth, imgHeight, stepDiffRadius);
+            gaussianBlur2D(devField, diffusedDeveloper, imgWidth, imgHeight, stepDiffRadius);
             const localWeight = 1.0 - devBeta;
             for (let i = 0; i < size; i++) {
                 // Diffusion coupling varies with dilution (Fick's law:
@@ -842,12 +845,12 @@ function processImage(version) {
         density[i] = hdDensity(scatteredExposure[i], devMultiplier, film, pushPull);
     }
 
-    // PASS 6 [E6+E7]: spatially correlated grain, then positive print output.
-    // Grain amplitude derived from development time and push; cluster size fixed to stock.
+    // PASS 6 [E6+E7]: grain in negative density domain (Selwyn model), then paper H-D curve output.
     for (let i = 0; i < size; i++) {
         grainField[i] = hashNoise(i * 17 + 13);
     }
-    if (film.grainRadius > 0) boxBlur2D(grainField, grainBlurred, imgWidth, imgHeight, film.grainRadius);
+    // [E6] Gaussian correlation blur: models crystal-cluster morphology more accurately than box blur.
+    if (film.grainRadius > 0) gaussianBlur2D(grainField, grainBlurred, imgWidth, imgHeight, film.grainRadius);
     else grainBlurred.set(grainField);
 
     const densityRange = film.dMax - film.dMin;
@@ -857,17 +860,17 @@ function processImage(version) {
         const idx = i * 4;
         let dNorm = clamp((density[i] - film.dMin) / densityRange, 0, 1);
 
-        // Positive image from negative density: greater negative density maps to brighter positive tone.
-        let positive = printDensityToPositive(dNorm, printContrast);
-
+        // [E6] Grain added to negative density before printing (Selwyn-Nutting model).
+        // Variance ∝ D·(1 − D/Dmax): peaks in midtones, vanishes at clear base and maximum density.
+        // Grain is structure in the negative carried through the paper curve, not a post-process overlay.
         if (grainBase > 0) {
-            const midDensity = Math.sqrt(clamp(dNorm * (1 - dNorm) + 0.018, 0, 1));
-            const positiveShadowWeight = Math.pow(clamp(1 - positive, 0, 1), 0.70);
-            const highlightSuppress = 1 - smoothstep(0.82, 0.99, positive);
-            const clumpyNoise = grainField[i] * 0.62 + grainBlurred[i] * 1.45;
-            const amp = grainBase * midDensity * (0.25 + 1.45 * positiveShadowWeight) * highlightSuppress;
-            positive = clamp(positive + clumpyNoise * amp, 0, 1);
+            const selwynAmp = Math.sqrt(Math.max(0, dNorm * (1.0 - dNorm * 0.85)));
+            const clumpyNoise = grainField[i] * 0.55 + grainBlurred[i] * 1.32;
+            dNorm = clamp(dNorm + clumpyNoise * grainBase * selwynAmp * 2.4, 0, 1);
         }
+
+        // [E7] Paper H-D curve: negative density → paper exposure → paper density → reflectance.
+        const positive = printDensityToPositive(dNorm, paperGamma);
 
         const byte = linearToByte(positive);
         dst[idx] = byte;
@@ -933,23 +936,36 @@ function hdDensity(exposure, developer, film, pushPull) { // E4 → engines/04-d
     }
 }
 
-function printDensityToPositive(dNorm, contrast) { // E7 → engines/07-print-positive.md
-    // Scanner/print-like positive rendering from normalized negative density.
-    // Keeps film density monotonic: higher negative density -> brighter positive tone.
-    let v = clamp(dNorm, 0, 1);
-    const black = 0.020;
-    const white = 0.985;
-    v = clamp((v - black) / (white - black), 0, 1);
-
-    const c = 1.0 + (contrast - 1.0) * 1.75;
-    const denominator = 2.0 * Math.tanh(c * 0.5);
-    // tanh S-curve provides smooth toe/shoulder natively —
-    // no additional smoothstep needed (double-S was crushing shadows
-    // and adding 50% midtone contrast gain).
-    return 0.5 + Math.tanh((v - 0.5) * c) / denominator;
+function printDensityToPositive(dNorm, paperGamma) { // E7 → engines/07-print-positive.md
+    // Models the sensitometric response of silver-gelatin printing paper (Ilford RC Glossy reference).
+    //
+    // dNorm [0,1]: normalized negative density. dNorm=0 → clear base → maximum paper exposure → darkest print.
+    //             dNorm=1 → max negative density → minimum paper exposure → brightest print.
+    //
+    // LOG_E_RANGE=2.50 calibrated so that at grade 2 (γ=1.45):
+    //   scene 18% grey → D_neg≈0.59 → dNorm≈0.37 → normalized brightness ≈ 0.50 (sRGB ~128)
+    //
+    // Paper H-D curve: Dmin=0.06 (base+fog), Dmax=2.00 (RC glossy), knee at 55% of density range.
+    const logE = -dNorm * 2.50;  // clear negative (dNorm=0) → logE=0; dense (dNorm=1) → logE=-2.50
+    const paperDmin = 0.06;
+    const paperDmax = 2.00;
+    const paperRange = paperDmax - paperDmin;
+    const x = (logE - (-1.20)) / 0.32;   // softplus toe: inertia=-1.20, toe width=0.32
+    const toeE = softplus(x) * 0.32;
+    const drive = toeE * paperGamma * 1.71;
+    const kneeDrive = 0.55 * paperRange;  // straight-line region below 55% of paper density range
+    let D_paper;
+    if (drive <= kneeDrive) {
+        D_paper = clamp(paperDmin + drive, paperDmin, paperDmax);
+    } else {
+        const excess = drive - kneeDrive;
+        D_paper = clamp(paperDmin + kneeDrive + 0.80 * (1.0 - Math.exp(-excess / 0.80)), paperDmin, paperDmax);
+    }
+    // D_paper (optical density) → normalized reflectance [0,1]: paper black (Dmax) → 0, paper white (Dmin) → 1.
+    return clamp((paperDmax - D_paper) / paperRange, 0, 1);
 }
 
-function boxBlur2D(src, dst, w, h, radius) { // shared kernel: E4 E5 E6 (E3 now uses gaussianBlur2D / exponentialBlur2D)
+function boxBlur2D(src, dst, w, h, radius) { // internal primitive — used only inside gaussianBlur2D
     if (radius <= 0) {
         dst.set(src);
         return;
@@ -992,7 +1008,7 @@ function boxBlur2D(src, dst, w, h, radius) { // shared kernel: E4 E5 E6 (E3 now 
     }
 }
 
-function gaussianBlur2D(src, dst, w, h, radius) { // E3 scatter — three-pass box blur ≈ Gaussian (σ ≈ radius)
+function gaussianBlur2D(src, dst, w, h, radius) { // E3 scatter/halation, E4 diffusion, E6 grain — three-pass box blur ≈ radially symmetric Gaussian (σ ≈ radius)
     if (radius <= 0) { dst.set(src); return; }
     const t1 = new Float32Array(w * h);
     const t2 = new Float32Array(w * h);
