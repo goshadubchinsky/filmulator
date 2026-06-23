@@ -117,6 +117,22 @@
 
         input[type="file"] { cursor: pointer; }
 
+        .debug-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 204, 102, 0.07);
+            border: 1px solid rgba(255, 204, 102, 0.28);
+            border-radius: 8px;
+            padding: 9px 12px;
+            font-size: 12px;
+            color: var(--warn);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .debug-bar input[type="checkbox"] { accent-color: var(--warn); cursor: pointer; }
+
         .status {
             text-align: center;
             font-size: 12px;
@@ -167,6 +183,11 @@
 
     <input type="file" id="upload" accept="image/*">
     <canvas id="canvas" width="620" height="390"></canvas>
+
+    <label class="debug-bar">
+        <input type="checkbox" id="e1Bypass">
+        E1 identity bypass — linearise → BT.709 luminance → sRGB only, no film processing
+    </label>
 
     <div class="controls">
         <div class="mini-grid">
@@ -224,57 +245,57 @@
         <div class="control-group">
             <div class="row">
                 <label for="opticalScatter">Emulsion Scatter / MTF Loss</label>
-                <span class="value" id="opticalScatterValue">1.00</span>
+                <span class="value" id="opticalScatterValue">0.00</span>
             </div>
-            <input type="range" id="opticalScatter" min="0.00" max="2.00" step="0.05" value="1.00">
+            <input type="range" id="opticalScatter" min="0.00" max="2.00" step="0.05" value="0.00">
         </div>
 
         <div class="control-group">
             <div class="row">
                 <label for="halation">B&W Halation / Base Fog</label>
-                <span class="value" id="halationValue">0.55</span>
+                <span class="value" id="halationValue">0.00</span>
             </div>
-            <input type="range" id="halation" min="0.00" max="2.00" step="0.05" value="0.55">
+            <input type="range" id="halation" min="0.00" max="2.00" step="0.05" value="0.00">
         </div>
 
         <div class="control-group">
             <div class="row">
                 <label for="exhaustion">Developer Exhaustion</label>
-                <span class="value" id="exhaustionValue">1.20</span>
+                <span class="value" id="exhaustionValue">0.00</span>
             </div>
-            <input type="range" id="exhaustion" min="0.00" max="3.00" step="0.05" value="1.20">
+            <input type="range" id="exhaustion" min="0.00" max="3.00" step="0.05" value="0.00">
         </div>
 
         <div class="control-group">
             <div class="row">
                 <label for="diffusionRadius">Chemical Diffusion Radius</label>
-                <span class="value" id="diffusionRadiusValue">9 px</span>
+                <span class="value" id="diffusionRadiusValue">0 px</span>
             </div>
-            <input type="range" id="diffusionRadius" min="0" max="36" step="1" value="9">
+            <input type="range" id="diffusionRadius" min="0" max="36" step="1" value="0">
         </div>
 
         <div class="control-group">
             <div class="row">
                 <label for="eberhard">Eberhard / Mackie Edge Effect</label>
-                <span class="value" id="eberhardValue">0.85</span>
+                <span class="value" id="eberhardValue">0.00</span>
             </div>
-            <input type="range" id="eberhard" min="0.00" max="2.00" step="0.05" value="0.85">
+            <input type="range" id="eberhard" min="0.00" max="2.00" step="0.05" value="0.00">
         </div>
 
         <div class="control-group">
             <div class="row">
                 <label for="grain">Cubic Grain</label>
-                <span class="value" id="grainValue">1.00</span>
+                <span class="value" id="grainValue">0.00</span>
             </div>
-            <input type="range" id="grain" min="0.00" max="2.50" step="0.05" value="1.00">
+            <input type="range" id="grain" min="0.00" max="2.50" step="0.05" value="0.00">
         </div>
 
         <div class="control-group">
             <div class="row">
                 <label for="printContrast">Positive Print Contrast</label>
-                <span class="value" id="printContrastValue">1.10</span>
+                <span class="value" id="printContrastValue">1.00</span>
             </div>
-            <input type="range" id="printContrast" min="0.60" max="1.90" step="0.05" value="1.10">
+            <input type="range" id="printContrast" min="0.60" max="1.90" step="0.05" value="1.00">
         </div>
     </div>
 
@@ -343,6 +364,8 @@ const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d', { willReadFrequently: true });
 const statusDiv = document.getElementById('status');
 const versionBadge = document.getElementById('versionBadge');
+
+const e1BypassCheckbox = document.getElementById('e1Bypass');
 
 const controls = {
     filmStock: document.getElementById('filmStock'),
@@ -437,6 +460,10 @@ Object.values(controls).forEach((control) => {
     });
 });
 
+e1BypassCheckbox.addEventListener('change', () => {
+    if (originalImgData) scheduleProcess();
+});
+
 function updateControlLabels() {
     const film = FILM_PROFILES[controls.filmStock.value];
     const filter = FILTERS[controls.colorFilter.value];
@@ -491,6 +518,22 @@ function processImage(version) {
     const outputImgData = ctx.createImageData(imgWidth, imgHeight);
     const dst = outputImgData.data;
     const size = imgWidth * imgHeight;
+
+    // E1 [E1]: bypass all film processing — pure sRGB→linear→BT.709 luma→sRGB round-trip.
+    // Use this to confirm Engine 1 linearisation is correct before enabling any other engine.
+    if (e1BypassCheckbox.checked) {
+        for (let i = 0; i < size; i++) {
+            const idx = i * 4;
+            const luma = 0.2126 * linearR[i] + 0.7152 * linearG[i] + 0.0722 * linearB[i];
+            const byte = linearToByte(luma);
+            dst[idx] = byte; dst[idx + 1] = byte; dst[idx + 2] = byte;
+            dst[idx + 3] = originalImgData.data[idx + 3];
+        }
+        if (version !== processVersion) return;
+        ctx.putImageData(outputImgData, 0, 0);
+        statusDiv.innerText = `E1 identity bypass · ${Math.round(performance.now() - start)} ms`;
+        return;
+    }
 
     const film = FILM_PROFILES[controls.filmStock.value];
     const filter = FILTERS[controls.colorFilter.value];
