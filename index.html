@@ -391,7 +391,7 @@ const FILM_PROFILES = {
         gamma: 0.50,       // target Ilford G for ID-11 at 20 °C
         inertia: -1.34,
         toe: 0.56,         // reset to original
-        shoulder: 1.55,    // reset to original
+        shoulder: 0.70,    // compression above knee (~0.684 headroom above 55% knee)
         dMin: 0.10,
         dMax: 1.62,
         opticalRadius: 1.10,
@@ -419,22 +419,22 @@ const GRADE_NAMES = { 0: 'Extra Soft', 1: 'Soft', 2: 'Normal', 3: 'Hard', 4: 'Ve
 
 // [E4] Physics-based dilution parameters — engines/04-development.md
 //
-// Calibrated to Ilford FP4+ D-76/ID-11 data: stock 8.5 min, 1+1 11 min, 1+3 15 min
-// all reach contrast G=0.55 (same density). Dilution changes development RATE,
+// Qualitatively calibrated to Ilford FP4+ D-76/ID-11 data: stock 6.5 min, 1+1 11 min,
+// 1+3 15 min all reach similar contrast G≈0.55. Dilution changes development RATE,
 // not final capacity; with appropriate time compensation, all dilutions achieve
 // similar Dmax.
 //
-// Science: first-order reaction kinetics (rate ∝ [developer], Mason §5.3) coupled
-// to Fickian diffusion in swollen gelatin (Iwano 1969, Bull Chem Soc Japan 42:2677;
-// D_Metol ≈ 1.4×10⁻⁶ cm²/s, D_HQ ≈ 0.6×10⁻⁶ cm²/s). Superadditivity buffers
-// effective activity: activity ∝ (1/(1+parts))^0.42.
+// Model: first-order reaction kinetics (rate ∝ [developer]) coupled to Fickian
+// lateral diffusion in swollen gelatin. Superadditivity buffers effective activity:
+// activity ∝ (1/(1+parts))^0.42. Constants are fitted to qualitative behavior,
+// not derived from measured diffusion coefficients.
 //
 // C0 = effective initial developer activity (relative to stock concentrate).
 // Per-step consumption: dC/dt = -k(E) × C  (first-order in [dev]).
 // Higher dilution → faster relative local depletion → steeper C gradients
 // → stronger Mackie-line edge effects emerging from the reaction-diffusion PDE.
 const DEV_C0 = {
-    stock:  1.00,   // reference — 8.5 min → G=0.55
+    stock:  1.00,   // reference — 6.5 min → G=0.55
     '1+1':  0.75,   // 11 min  → G=0.55
     '1+3':  0.55,   // 15 min  → G=0.55
     '1+9':  0.36,   // ~23 min → G=0.55 (extrapolated)
@@ -531,7 +531,7 @@ upload.addEventListener('change', (event) => {
     reader.onload = (readerEvent) => {
         const img = new Image();
         img.onload = () => {
-            const maxDimension = 2622;
+            const maxDimension = 1100;
             let w = img.naturalWidth || img.width;
             let h = img.naturalHeight || img.height;
 
@@ -799,7 +799,6 @@ function processImage(version) {
     // at sharp boundaries, the highlight side exhausts its developer faster,
     // creating a steep C gradient that drives diffusive flux from the shadow side.
     //
-    // References: Mason §6, Iwano (1969) Bull Chem Soc Japan 42:2677.
     const baseSteps = 6;
     const DEV_STEPS = Math.max(5, Math.min(14,
         Math.round(baseSteps * effectiveDevTime / film.nominalDevTime)));
