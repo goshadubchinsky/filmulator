@@ -66,6 +66,16 @@ of filters and white balance is correct. It's held back by the unavoidable
 
 ## Progression Log
 
+### 2026-06-23 — Visual confirmation passed
+Added E2 spectral bypass mode (film weights × WB × filter applied directly,
+no H-D curve or effects). Confirmed visually via GitHub Pages:
+- FP4 vs BT.709: blue areas lighter, green foliage darker — correct direction
+- HP5 vs FP4: even more blue sensitivity — correct
+- Red filter: reds bright, blues dark — correct
+- WB shift: tonal translation shifts with illuminant — correct
+Film stock, WB, filter, and exposure sliders all respond live in bypass mode.
+No code changes to E2 logic. Rating unchanged at 5/10.
+
 ### 2026-06-23 — Baseline assessment
 Documented current weight-based spectral model. Confirmed the
 multiply-then-integrate structure is physically shaped. Flagged the 3-sample
