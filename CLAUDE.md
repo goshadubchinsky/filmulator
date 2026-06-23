@@ -41,6 +41,30 @@ Two top-level constant tables drive the simulation:
 - **`FILM_PROFILES`** (`fp4`, `hp5`) — per-stock physical parameters: panchromatic spectral weights, H-D curve shape (`gamma`, `inertia`, `toe`, `shoulder`, `dMin`, `dMax`), optical scatter radius, halation radius/threshold/strength, Eberhard coefficient, and grain parameters.
 - **`FILTERS`** — six optical filter presets, each carrying per-channel multipliers and an EV correction.
 
+### Engines
+
+The pipeline is conceptually divided into seven **engines**, each modeling one
+physical/chemical stage of film. Every engine is documented in `engines/` with a
+**realness rating (1–10)** — how faithfully it models the actual physics, not how
+good it looks — and a **progression log**.
+
+| # | Engine | Realness | Passes |
+|---|--------|:--------:|--------|
+| 1 | Input / Scene-Linear | 4/10 | pre-Pass 1 |
+| 2 | Spectral Sensitivity | 5/10 | Pass 1 |
+| 3 | Optical Transport | 5/10 | Pass 2 |
+| 4 | Development | 7/10 | Passes 3–4 |
+| 5 | Adjacency / Edge Effects | 3/10 | Pass 5 |
+| 6 | Grain | 3/10 | Pass 6 |
+| 7 | Print / Positive | 4/10 | Pass 6 |
+
+**Required workflow:** whenever you change code belonging to an engine, append a
+dated entry to that engine's progression log in `engines/`, and update its
+realness rating (and the tables in `engines/README.md` and here) if the change
+moved it. The logs are the running memory of how each engine evolves toward real
+physics. Read the relevant engine doc before working on its code. See
+`engines/README.md` for the full map.
+
 ### Image processing pipeline
 
 Images are capped to 1100 px on the longest edge on load. `buildLinearSourceBuffers()` converts sRGB pixels into three `Float32Array` buffers (`linearR/G/B`) in scene-linear light. All subsequent passes operate on `Float32Array` buffers of size `width × height`.
