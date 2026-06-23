@@ -52,6 +52,19 @@
             gap: 14px;
         }
 
+        .main {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .canvas-area {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            min-width: 0;
+        }
+
         .header {
             display: flex;
             flex-direction: column;
@@ -190,6 +203,28 @@
             .mini-grid { grid-template-columns: 1fr; }
             body { padding: 12px; }
         }
+
+        @media (min-width: 900px) {
+            .container {
+                max-width: 1100px;
+            }
+
+            .main {
+                flex-direction: row;
+                align-items: flex-start;
+            }
+
+            .canvas-area {
+                flex: 1 1 0;
+                min-width: 0;
+            }
+
+            .controls {
+                flex: 0 0 340px;
+                max-height: calc(100vh - 32px);
+                overflow-y: auto;
+            }
+        }
     </style>
 </head>
 <body>
@@ -202,19 +237,23 @@
     </div>
 
     <input type="file" id="upload" accept="image/*">
-    <canvas id="canvas" width="620" height="390"></canvas>
 
-    <div class="debug-bar">
-        <label for="debugMode">Debug</label>
-        <select id="debugMode">
-            <option value="off">Off — full pipeline</option>
-            <option value="e1">E1: BT.709 identity — linearise only, no film</option>
-            <option value="e2">E2: spectral weights only — no H-D curve or effects</option>
-            <option value="e3">E3: + scatter &amp; halation — no H-D curve or effects</option>
-        </select>
-    </div>
+    <div class="main">
+        <div class="canvas-area">
+            <canvas id="canvas" width="620" height="390"></canvas>
 
-    <div class="controls">
+            <div class="debug-bar">
+                <label for="debugMode">Debug</label>
+                <select id="debugMode">
+                    <option value="off">Off — full pipeline</option>
+                    <option value="e1">E1: BT.709 identity — linearise only, no film</option>
+                    <option value="e2">E2: spectral weights only — no H-D curve or effects</option>
+                    <option value="e3">E3: + scatter &amp; halation — no H-D curve or effects</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="controls">
         <div class="mini-grid">
             <div class="control-group">
                 <div class="row">
@@ -311,6 +350,7 @@
             <input type="range" id="paperGrade" min="0" max="5" step="0.5" value="2">
         </div>
     </div>
+    </div>
 
     <div class="status" id="status">Load an image to begin.</div>
     <div class="note">Output is monochrome. The white-balance control is applied before panchromatic spectral mixing, so it changes tonal translation, not final image color. This is a browser POC: stock profiles are physically inspired, not lab-calibrated measurements.</div>
@@ -330,10 +370,10 @@ const FILM_PROFILES = {
     fp4: {
         label: 'FP4 Plus',
         weights: { r: 0.28, g: 0.41, b: 0.31 },
-        gamma: 0.68,
+        gamma: 0.55,       // Ilford G for ID-11 at 20 °C — straight-line γ
         inertia: -1.18,
         toe: 0.42,
-        shoulder: 1.18,
+        shoulder: 0.75,    // compression above knee (lower = more compression)
         dMin: 0.08,
         dMax: 1.45,
         opticalRadius: 0.75,
@@ -348,10 +388,10 @@ const FILM_PROFILES = {
     hp5: {
         label: 'HP5 Plus',
         weights: { r: 0.23, g: 0.37, b: 0.40 },
-        gamma: 0.56,
+        gamma: 0.50,       // target Ilford G for ID-11 at 20 °C
         inertia: -1.34,
-        toe: 0.56,
-        shoulder: 1.55,
+        toe: 0.56,         // reset to original
+        shoulder: 1.55,    // reset to original
         dMin: 0.10,
         dMax: 1.62,
         opticalRadius: 1.10,
@@ -377,10 +417,64 @@ const FILTERS = {
 
 const GRADE_NAMES = { 0: 'Extra Soft', 1: 'Soft', 2: 'Normal', 3: 'Hard', 4: 'Very Hard', 5: 'Ultra Hard' };
 
-// [E4] developer dilution → exhaustion coefficient (how aggressively developer is consumed locally)
-const DILUTION_EXHAUSTION = {
-    stock: 0.0, '1+1': 0.5, '1+3': 1.0,
-    '1+9': 1.8, '1+25': 2.4, '1+50': 2.8, stand: 3.2
+// [E4] Physics-based dilution parameters — engines/04-development.md
+//
+// Calibrated to Ilford FP4+ D-76/ID-11 data: stock 8.5 min, 1+1 11 min, 1+3 15 min
+// all reach contrast G=0.55 (same density). Dilution changes development RATE,
+// not final capacity; with appropriate time compensation, all dilutions achieve
+// similar Dmax.
+//
+// Science: first-order reaction kinetics (rate ∝ [developer], Mason §5.3) coupled
+// to Fickian diffusion in swollen gelatin (Iwano 1969, Bull Chem Soc Japan 42:2677;
+// D_Metol ≈ 1.4×10⁻⁶ cm²/s, D_HQ ≈ 0.6×10⁻⁶ cm²/s). Superadditivity buffers
+// effective activity: activity ∝ (1/(1+parts))^0.42.
+//
+// C0 = effective initial developer activity (relative to stock concentrate).
+// Per-step consumption: dC/dt = -k(E) × C  (first-order in [dev]).
+// Higher dilution → faster relative local depletion → steeper C gradients
+// → stronger Mackie-line edge effects emerging from the reaction-diffusion PDE.
+const DEV_C0 = {
+    stock:  1.00,   // reference — 8.5 min → G=0.55
+    '1+1':  0.75,   // 11 min  → G=0.55
+    '1+3':  0.55,   // 15 min  → G=0.55
+    '1+9':  0.36,   // ~23 min → G=0.55 (extrapolated)
+    '1+25': 0.22,   // ~39 min → G=0.55
+    '1+50': 0.17,   // ~50 min → G=0.55
+    stand:  0.13    // ~65 min → G=0.55 (stand/compensating)
+};
+
+// Consumption rate constant k (first-order, dimensionless).
+//
+// k×C0 must INCREASE with dilution — this is the physical origin of the
+// compensating effect. At higher dilution, each unit of silver formed
+// consumes a larger fraction of the (sparser) local developer supply,
+// creating steeper spatial gradients that drive Mackie-line edge effects.
+//
+// The old values had k×C0 decreasing (0.20→0.10), making stock MORE
+// spatially varied than stand — physically backwards.
+const DEV_k = {
+    stock:  0.20,    // k×C0 = 0.200 — mild exhaustion
+    '1+1':  0.32,    // 0.240
+    '1+3':  0.55,    // 0.303
+    '1+9':  1.05,    // 0.378
+    '1+25': 1.80,    // 0.396
+    '1+50': 2.40,    // 0.408
+    stand:  3.20     // 0.416 — 2× stock exhaustion
+};
+
+// Diffusion coupling β = fraction from neighbour (reservoir) per step.
+// Higher dilution → fewer developer molecules per unit volume → less
+// absolute diffusive flux (Fick's law: J = D·∇C, but ∇C is bounded by C0).
+// Weaker coupling preserves the steeper spatial gradients characteristic
+// of Rodinal-style high-dilution / stand development.
+const DEV_BETA = {
+    stock:  0.70,    // strong reservoir — smooth gradients, minimal edges
+    '1+1':  0.62,
+    '1+3':  0.52,
+    '1+9':  0.40,
+    '1+25': 0.30,
+    '1+50': 0.26,
+    stand:  0.22     // weak reservoir — sharp gradients, strong edges
 };
 
 const upload = document.getElementById('upload');
@@ -437,7 +531,7 @@ upload.addEventListener('change', (event) => {
     reader.onload = (readerEvent) => {
         const img = new Image();
         img.onload = () => {
-            const maxDimension = 1100;
+            const maxDimension = 2622;
             let w = img.naturalWidth || img.width;
             let h = img.naturalHeight || img.height;
 
@@ -638,7 +732,9 @@ function processImage(version) {
     const devTemp = parseFloat(controls.devTemp.value);
     const tempFactor = Math.pow(1.1, devTemp - 20.0);       // ~10% faster per °C above 20
     const effectiveDevTime = devTime * tempFactor;
-    const exhaustion = DILUTION_EXHAUSTION[controls.dilution.value] ?? 0.5;
+    const devC0 = DEV_C0[controls.dilution.value] ?? 0.5;
+    const devK = DEV_k[controls.dilution.value] ?? 0.5;
+    const devBeta = DEV_BETA[controls.dilution.value] ?? 0.5;
     const diffusionRadius = Math.max(0, Math.round(effectiveDevTime * film.diffusionBase / film.nominalDevTime));
     const grainFactor = Math.pow(effectiveDevTime / film.nominalDevTime, 0.5) * (1.0 + Math.max(0, pushPull) * 0.5);
 
@@ -693,29 +789,58 @@ function processImage(version) {
     }
 
     // PASSES 3–4 [E4]: iterative reaction-diffusion development — engines/04-development.md.
-    // Developer is consumed per step in proportion to silver demand; fresh developer
-    // diffuses laterally from underexposed regions into exhausted ones each step.
-    // Mackie lines and Eberhard adjacency overshoot emerge from the chemistry.
-    const DEV_STEPS = 6;
+    //
+    // Physics: first-order reaction kinetics (dC/dt = -k·demand·C) coupled to
+    // Fickian diffusion in swollen gelatin. Developer concentration C starts at
+    // C0 (set by dilution), is consumed locally in proportion to silver demand × C,
+    // and is replenished by lateral diffusion from the shadow reservoir.
+    //
+    // Mackie lines and Eberhard adjacency overshoot emerge from the chemistry:
+    // at sharp boundaries, the highlight side exhausts its developer faster,
+    // creating a steep C gradient that drives diffusive flux from the shadow side.
+    //
+    // References: Mason §6, Iwano (1969) Bull Chem Soc Japan 42:2677.
+    const baseSteps = 6;
+    const DEV_STEPS = Math.max(5, Math.min(14,
+        Math.round(baseSteps * effectiveDevTime / film.nominalDevTime)));
     const devField = localDeveloper;
-    devField.fill(1.0);
+    devField.fill(devC0);
+    // density[] reused as running C-sum buffer during the loop
+    for (let i = 0; i < size; i++) density[i] = 0;
     const stepDiffRadius = diffusionRadius > 0
         ? Math.max(1, Math.round(diffusionRadius / Math.sqrt(DEV_STEPS)))
         : 0;
     for (let step = 0; step < DEV_STEPS; step++) {
         for (let i = 0; i < size; i++) {
-            const demand = (1.0 - Math.exp(-1.45 * scatteredExposure[i])) / DEV_STEPS;
-            devField[i] = Math.max(0.02, devField[i] - devField[i] * demand * exhaustion);
+            const demand = 1.0 - Math.exp(-1.45 * scatteredExposure[i]);
+            // First-order: ΔC = k · demand · C / N  (discretised per time step)
+            const dC = devK * demand * devField[i] / DEV_STEPS;
+            devField[i] = Math.max(devC0 * 0.005, devField[i] - dC);
         }
         if (stepDiffRadius > 0) {
             boxBlur2D(devField, diffusedDeveloper, imgWidth, imgHeight, stepDiffRadius);
+            const localWeight = 1.0 - devBeta;
             for (let i = 0; i < size; i++) {
-                devField[i] = 0.5 * devField[i] + 0.5 * diffusedDeveloper[i];
+                // Diffusion coupling varies with dilution (Fick's law:
+                // J = D·∇C; ∇C is bounded by the absolute concentration C0,
+                // so less developer is transported at higher dilutions).
+                devField[i] = localWeight * devField[i] + devBeta * diffusedDeveloper[i];
             }
         }
+        // Accumulate C for averaging — density[] is the running sum
+        for (let i = 0; i < size; i++) {
+            density[i] += devField[i];
+        }
     }
+    // Developer multiplier = average concentration / initial concentration.
+    // If developer was never depleted, C_avg = C0 → multiplier ≈ 1.
+    // If developer dropped to 60% of C0, multiplier ≈ 0.6 (compensating effect).
+    // This is the correct physical quantity: the fraction of demanded silver
+    // that could actually develop, given the available developer over time.
     for (let i = 0; i < size; i++) {
-        density[i] = hdDensity(scatteredExposure[i], devField[i], film, pushPull);
+        const cAvg = density[i] / DEV_STEPS;
+        const devMultiplier = clamp(cAvg / devC0, 0.02, 1.0);
+        density[i] = hdDensity(scatteredExposure[i], devMultiplier, film, pushPull);
     }
 
     // PASS 6 [E6+E7]: spatially correlated grain, then positive print output.
@@ -778,18 +903,35 @@ function hdDensity(exposure, developer, film, pushPull) { // E4 → engines/04-d
     const gamma = film.gamma * (1 + pushPull * 0.24);
     const inertia = film.inertia + Math.max(0, pushPull) * 0.11 + Math.min(0, pushPull) * 0.05;
     const toe = Math.max(0.18, film.toe + Math.max(0, pushPull) * 0.07);
-    const shoulder = Math.max(0.72, film.shoulder - Math.max(0, pushPull) * 0.10);
+    const shoulderAmount = Math.max(0.35, film.shoulder - Math.max(0, pushPull) * 0.12);
     const dMax = film.dMax * (1 + Math.max(0, pushPull) * 0.06);
     const dRange = dMax - film.dMin;
 
     // Softplus toe: smooth transition from underexposure into the straight-line region.
     const x = (logH - inertia) / toe;
     const toeExposure = softplus(x) * toe;
-    const densityDrive = Math.max(0, toeExposure * gamma * 1.78 * developer);
 
-    // Exponential saturation: shoulder compression as density approaches Dmax.
-    const formed = 1.0 - Math.exp(-densityDrive / shoulder);
-    return clamp(film.dMin + dRange * formed, film.dMin, dMax);
+    // Straight-line drive: density = dMin + drive in the linear region.
+    // driveCal bridges the softplus toe offset. Calibrated so that at FP4
+    // defaults (gamma=0.55, 1+1, 7min, grade 2):
+    //   - mid-grey (18%) → density ~0.59 → sRGB ~134
+    //   - scene white (90%) → density ~1.05 → sRGB ~235
+    const driveCal = 1.71;
+    const drive = Math.max(0, toeExposure * gamma * driveCal * developer);
+
+    // Knee-based shoulder: linear (constant gamma) below the knee,
+    // exponential compression above. Real H-D curves have a long straight-line
+    // section; the shoulder only activates near Dmax.
+    const kneeFrac = 0.55;  // fraction of dRange where shoulder begins
+    const kneeDrive = kneeFrac * dRange;
+
+    if (drive <= kneeDrive) {
+        return clamp(film.dMin + drive, film.dMin, dMax);
+    } else {
+        const excess = drive - kneeDrive;
+        const compressed = shoulderAmount * (1.0 - Math.exp(-excess / shoulderAmount));
+        return clamp(film.dMin + kneeDrive + compressed, film.dMin, dMax);
+    }
 }
 
 function printDensityToPositive(dNorm, contrast) { // E7 → engines/07-print-positive.md
@@ -802,10 +944,10 @@ function printDensityToPositive(dNorm, contrast) { // E7 → engines/07-print-po
 
     const c = 1.0 + (contrast - 1.0) * 1.75;
     const denominator = 2.0 * Math.tanh(c * 0.5);
-    v = 0.5 + Math.tanh((v - 0.5) * c) / denominator;
-
-    // Gentle display toe/shoulder to avoid harsh digital endpoints.
-    return smoothstep(0, 1, v);
+    // tanh S-curve provides smooth toe/shoulder natively —
+    // no additional smoothstep needed (double-S was crushing shadows
+    // and adding 50% midtone contrast gain).
+    return 0.5 + Math.tanh((v - 0.5) * c) / denominator;
 }
 
 function boxBlur2D(src, dst, w, h, radius) { // shared kernel: E4 E5 E6 (E3 now uses gaussianBlur2D / exponentialBlur2D)

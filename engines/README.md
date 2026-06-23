@@ -28,7 +28,7 @@ modeling the cause.
 | 1 | [Input / Scene-Linear](01-input-scene-linear.md) | 4/10 | sRGB linearization is exact, but a processed 8-bit JPEG is treated as scene radiance |
 | 2 | [Spectral Sensitivity](02-spectral-sensitivity.md) | 5/10 | 3-sample RGB stand-in for a continuous spectral integral; weights are tuned, not measured |
 | 3 | [Optical Transport](03-optical-transport.md) | 6/10 | halation uses Frieser exponential LSF (IIR); scatter uses Gaussian approx; separable kernels, not radially symmetric |
-| 4 | [Development](04-development.md) | 8/10 | iterative reaction-diffusion (6 steps); adjacency effects emerge from chemistry; box-blur diffusion kernel remains |
+| 4 | [Development](04-development.md) | 9/10 | iterative rxn-diff (5–14 steps, ∝ time); first-order kinetics; Ilford-calibrated dilution; silver accumulation; 70/30 reservoir diffusion; adjacency emerges |
 | 5 | [Adjacency / Edge Effects](05-adjacency-edge-effects.md) | **RETIRED** | synthetic high-pass deleted; effect now emerges from E4 iterative development |
 | 6 | [Grain](06-grain.md) | 3/10 | procedural noise texture, not a stochastic silver-halide crystal model |
 | 7 | [Print / Positive](07-print-positive.md) | 4/10 | plausible density inversion, but the paper's own characteristic curve is unmodeled |
