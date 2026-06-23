@@ -605,7 +605,13 @@ function processImage(version) {
 
         const halRadius = Math.max(1, Math.round(fE3.halationRadius * (0.7 + halAmt * 0.9)));
         boxBlur2D(halSrc, halMap, imgWidth, imgHeight, halRadius);
-        const halStrength = fE3.halationStrength * halAmt;
+        // Display gain ×20 in E3 bypass — halation is calibrated to work through the H-D
+        // curve where shoulder compression amplifies small exposure additions. Without the
+        // curve, the raw addition (~0.03 × blurred highlights) is sub-pixel. ×20 makes it
+        // visible here for engine testing only; this multiplier is not in the live pipeline.
+        const halStrength = fE3.halationStrength * halAmt * 20;
+        let maxHalSrc = 0;
+        for (let i = 0; i < size; i++) if (halSrc[i] > maxHalSrc) maxHalSrc = halSrc[i];
         if (halStrength > 0) {
             for (let i = 0; i < size; i++) scatE[i] += halMap[i] * halStrength;
         }
@@ -618,7 +624,8 @@ function processImage(version) {
         }
         if (version !== processVersion) return;
         ctx.putImageData(outputImgData, 0, 0);
-        statusDiv.innerText = `E3 optical bypass · ${controls.filmStock.value.toUpperCase()} · ${Math.round(performance.now() - start)} ms`;
+        const halNote = maxHalSrc < 0.001 ? 'no highlights above threshold' : `max halSrc ${maxHalSrc.toFixed(3)} · display ×20`;
+        statusDiv.innerText = `E3 optical bypass · ${controls.filmStock.value.toUpperCase()} · ${halNote} · ${Math.round(performance.now() - start)} ms`;
         return;
     }
 
