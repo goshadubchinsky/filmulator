@@ -57,6 +57,13 @@ correctly and honestly.
 
 ## Progression Log
 
+### 2026-06-23 — Visual confirmation passed
+Added E1 identity bypass mode (`sRGB → linear → BT.709 luma → sRGB`, no film
+processing). Uploaded a photo via GitHub Pages live build and confirmed output
+is a correct desaturated (luminance-weighted B&W) version of the source.
+Round-trip linearisation is working. Rating unchanged at 4/10 — the math is
+correct; the 4/10 ceiling is the processed-JPEG-as-radiance premise, not a bug.
+
 ### 2026-06-23 — Baseline assessment
 Documented the engine as-is. Linearization confirmed correct. Identified the
 processed-JPEG-as-radiance premise and the [0,1] dynamic-range cap as the main
