@@ -1,5 +1,7 @@
 # Adjacency / Edge Effects Engine
 
+*Physics reference: `research/physics-of-film.md` §3.3 — Eberhard Effect and Mackie Lines as emergent consequence of reaction-diffusion PDEs*
+
 **Realness: 3/10**
 **Pipeline stage:** Pass 5
 **Source:** `blurredDensity`, `edgeRadius`, `edgeGain` (`film.eberhard`, `eberhardAmount`), the high-pass add, `smoothstep()` edge mask

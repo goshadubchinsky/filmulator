@@ -1,5 +1,7 @@
 # Optical Transport Engine
 
+*Physics reference: `research/physics-of-film.md` §1 — Kubelka-Munk ODEs (§1.2), Frieser exponential LSF (§1.3)*
+
 **Realness: 5/10**
 **Pipeline stage:** Pass 2
 **Source:** scatter block (`film.opticalRadius`, `opticalScatter`, `scatterMix`), halation block (`smoothThreshold()`, `halationSource`, `halationMap`, `film.halationRadius/Threshold/Strength`), `boxBlur2D()`

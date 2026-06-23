@@ -1,5 +1,7 @@
 # Grain Engine
 
+*Physics reference: `research/physics-of-film.md` §5 — Nutting's Law (§5.1), Boolean stochastic grain model / Newson et al. (§5.2)*
+
 **Realness: 3/10**
 **Pipeline stage:** Pass 6 (grain portion)
 **Source:** `hashNoise()`, `grainField`, `grainBlurred`, `grainRadius`, density-linked amplitude block (`midDensity`, `positiveShadowWeight`, `highlightSuppress`, `film.grain`/`grainAmount`)

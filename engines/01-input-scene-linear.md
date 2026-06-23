@@ -1,5 +1,7 @@
 # Input / Scene-Linear Engine
 
+*Physics reference: `research/physics-of-film.md` §1.1 — Radiative Transfer and the requirement for scene-linear spectral input; §2 — Gurney-Mott latent image formation (requires accurate photon flux)*
+
 **Realness: 4/10**
 **Pipeline stage:** before Pass 1
 **Source:** `upload` change handler, `buildLinearSourceBuffers()`, `srgbToLinear()`, the `maxDimension` downscale

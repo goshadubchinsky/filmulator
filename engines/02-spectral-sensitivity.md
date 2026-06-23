@@ -1,5 +1,7 @@
 # Spectral Sensitivity Engine
 
+*Physics reference: `research/physics-of-film.md` §4.1 — spectral domain dye formation and spectrophotometry (colour extension); §2 — latent image formation and Gurney-Mott mechanism*
+
 **Realness: 5/10**
 **Pipeline stage:** Pass 1
 **Source:** `effectiveSpectralWeights()`, `FILM_PROFILES[*].weights`, `FILTERS`, `filmBalanceMultipliers()`, `kelvinToLinearWhite()`, `kelvinToSrgbWhite()`, `describeFilmBalance()`, the `exposureMultiplier`/EV terms

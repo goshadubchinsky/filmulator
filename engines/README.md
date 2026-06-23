@@ -14,6 +14,13 @@ modeling the cause.
 > what film *looks like*. Approximating a calculation is fine; faking the
 > phenomenon is not. These ratings exist to track that honestly.
 
+> **Physics reference:** `research/physics-of-film.md` contains the full
+> mathematical derivations (Kubelka-Munk ODEs, Frieser LSF, Gurney-Mott,
+> reaction-diffusion PDEs, Nutting's Law, Boolean grain model) with the
+> paradigm tables distinguishing real physics from acceptable approximations
+> from vague graphical shortcuts. Read the relevant section before working
+> on an engine.
+
 ## The engines
 
 | # | Engine | Realness | One-line assessment |

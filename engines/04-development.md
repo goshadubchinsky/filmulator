@@ -1,5 +1,7 @@
 # Development Engine
 
+*Physics reference: `research/physics-of-film.md` §3 — reaction-diffusion PDEs (§3.2), Metol-Hydroquinone kinetics (§3.1), Mackie lines / Eberhard (§3.3)*
+
 **Realness: 7/10**
 **Pipeline stage:** Passes 3–4
 **Source:** developer-exhaustion block (`silverDemand`, `localDeveloper`), diffusion (`diffusedDeveloper`, `film`/`diffusionRadius`), `adjacencyDev`, `hdDensity()`, the push/pull terms
