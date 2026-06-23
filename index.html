@@ -286,6 +286,11 @@
 const APP_VERSION = 'v0.4.0-bw-hd-filmstocks';
 const REFERENCE_WHITE_KELVIN = 5500;
 
+/* ENGINE MAP → engines/README.md
+   E1 input/scene-linear   E2 spectral-sensitivity   E3 optical-transport
+   E4 development          E5 adjacency-edge          E6 grain   E7 print-positive */
+
+// E2–E6: per-stock sensitometric + physical parameters; see engines/README.md to add stocks
 const FILM_PROFILES = {
     fp4: {
         label: 'FP4 Plus',
@@ -323,6 +328,7 @@ const FILM_PROFILES = {
     }
 };
 
+// E2: optical filter channel multipliers and EV cost; see engines/README.md to add filters
 const FILTERS = {
     none:   { label: 'none',   r: 1.00, g: 1.00, b: 1.00, ev: 0.00 },
     yellow: { label: 'yellow', r: 1.08, g: 1.02, b: 0.34, ev: -0.45 },
@@ -464,7 +470,7 @@ function scheduleProcess() {
     }, 45);
 }
 
-function buildLinearSourceBuffers(imageData) {
+function buildLinearSourceBuffers(imageData) { // E1 → engines/01-input-scene-linear.md
     const src = imageData.data;
     const size = imgWidth * imgHeight;
 
@@ -513,7 +519,7 @@ function processImage(version) {
 
     const spectral = effectiveSpectralWeights(film.weights, wb, filter);
 
-    // PASS 1: scene-linear RGB -> film spectral exposure.
+    // PASS 1 [E2]: scene-linear RGB -> film spectral exposure.
     // White balance and optical filter are folded into the panchromatic channel mixer.
     for (let i = 0; i < size; i++) {
         const h = Math.max(0, (
@@ -527,7 +533,7 @@ function processImage(version) {
         halationSource[i] = source * h;
     }
 
-    // PASS 2: optical transport before development: emulsion scatter + monochrome halation.
+    // PASS 2 [E3]: optical transport before development: emulsion scatter + monochrome halation.
     const scatterRadius = Math.max(0, Math.round(film.opticalRadius * opticalScatter * 2));
     if (scatterRadius > 0) {
         boxBlur2D(rawExposure, scatteredExposure, imgWidth, imgHeight, scatterRadius);
@@ -548,14 +554,14 @@ function processImage(version) {
         }
     }
 
-    // PASS 3: local developer exhaustion and lateral chemical diffusion.
+    // PASS 3 [E4]: local developer exhaustion and lateral chemical diffusion.
     for (let i = 0; i < size; i++) {
         const silverDemand = 1.0 - Math.exp(-1.45 * scatteredExposure[i]);
         localDeveloper[i] = Math.exp(-exhaustion * silverDemand);
     }
     boxBlur2D(localDeveloper, diffusedDeveloper, imgWidth, imgHeight, diffusionRadius);
 
-    // PASS 4: H-D characteristic curve in density space.
+    // PASS 4 [E4]: H-D characteristic curve in density space.
     for (let i = 0; i < size; i++) {
         const devLocal = localDeveloper[i];
         const devBlur = diffusedDeveloper[i];
@@ -563,7 +569,7 @@ function processImage(version) {
         density[i] = hdDensity(scatteredExposure[i], adjacencyDev, film, pushPull);
     }
 
-    // PASS 5: Eberhard / Mackie effect as adaptive high-pass in density domain.
+    // PASS 5 [E5]: Eberhard / Mackie effect as adaptive high-pass in density domain.
     const edgeRadius = Math.max(1, Math.round(diffusionRadius * 0.45));
     boxBlur2D(density, blurredDensity, imgWidth, imgHeight, edgeRadius);
     const edgeGain = film.eberhard * eberhardAmount * (1 + Math.max(0, pushPull) * 0.16);
@@ -575,7 +581,7 @@ function processImage(version) {
         }
     }
 
-    // PASS 6: spatially correlated, density-linked cubic grain.
+    // PASS 6 [E6+E7]: spatially correlated grain, then positive print output.
     for (let i = 0; i < size; i++) {
         grainField[i] = hashNoise(i * 17 + 13);
     }
@@ -616,7 +622,7 @@ function processImage(version) {
     statusDiv.innerText = `Done in ${elapsed} ms Â· ${APP_VERSION}`;
 }
 
-function effectiveSpectralWeights(base, wb, filter) {
+function effectiveSpectralWeights(base, wb, filter) { // E2 → engines/02-spectral-sensitivity.md
     // Normalize after WB/filter so the channel mixer changes tonal relationships without large exposure jumps.
     let r = base.r * wb.r * filter.r;
     let g = base.g * wb.g * filter.g;
@@ -625,7 +631,7 @@ function effectiveSpectralWeights(base, wb, filter) {
     return { r: r / sum, g: g / sum, b: b / sum };
 }
 
-function hdDensity(exposure, developer, film, pushPull) {
+function hdDensity(exposure, developer, film, pushPull) { // E4 → engines/04-development.md
     const safeExposure = Math.max(exposure, 1e-7);
     const logH = Math.log10(safeExposure);
 
@@ -648,7 +654,7 @@ function hdDensity(exposure, developer, film, pushPull) {
     return clamp(film.dMin + dRange * formed, film.dMin, dMax);
 }
 
-function printDensityToPositive(dNorm, contrast) {
+function printDensityToPositive(dNorm, contrast) { // E7 → engines/07-print-positive.md
     // Scanner/print-like positive rendering from normalized negative density.
     // Keeps film density monotonic: higher negative density -> brighter positive tone.
     let v = clamp(dNorm, 0, 1);
@@ -664,7 +670,7 @@ function printDensityToPositive(dNorm, contrast) {
     return smoothstep(0, 1, v);
 }
 
-function boxBlur2D(src, dst, w, h, radius) {
+function boxBlur2D(src, dst, w, h, radius) { // shared kernel used by E3 E4 E5 E6
     if (radius <= 0) {
         dst.set(src);
         return;
@@ -715,7 +721,7 @@ function describeFilmBalance(kelvin) {
     return 'shade-biased tonal response';
 }
 
-function filmBalanceMultipliers(filmKelvin) {
+function filmBalanceMultipliers(filmKelvin) { // E2 → engines/02-spectral-sensitivity.md
     const ref = kelvinToLinearWhite(REFERENCE_WHITE_KELVIN);
     const target = kelvinToLinearWhite(filmKelvin);
 
@@ -812,7 +818,7 @@ function clampInt(x, min, max) {
     return Math.min(max, Math.max(min, x | 0));
 }
 
-function hashNoise(i) {
+function hashNoise(i) { // E6 → engines/06-grain.md
     let x = i + 0x6D2B79F5;
     x = Math.imul(x ^ (x >>> 15), x | 1);
     x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
