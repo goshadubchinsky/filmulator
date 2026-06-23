@@ -2,9 +2,9 @@
 
 *Physics reference: `research/physics-of-film.md` §3 — reaction-diffusion PDEs (§3.2), Metol-Hydroquinone kinetics (§3.1), Mackie lines / Eberhard (§3.3)*
 
-**Realness: 7/10**
+**Realness: 8/10**
 **Pipeline stage:** Passes 3–4
-**Source:** developer-exhaustion block (`silverDemand`, `localDeveloper`), diffusion (`diffusedDeveloper`, `film`/`diffusionRadius`), `adjacencyDev`, `hdDensity()`, the push/pull terms
+**Source:** iterative `devField` loop (`DEV_STEPS=6`), `diffusedDeveloper`, `hdDensity()`, the push/pull terms
 
 ## Purpose
 
@@ -30,49 +30,58 @@ lateral chemical diffusion of developer.
 
 ## Current implementation
 
-- `silverDemand = 1 − e^(−1.45·H)`; `localDeveloper = e^(−exhaustion·demand)`
-  (more demand → more exhausted developer).
-- `boxBlur2D` of the developer field models lateral diffusion (`diffusionRadius`).
-- `adjacencyDev` mixes local and diffused developer with a small overshoot,
-  feeding the curve a spatially-varying developer concentration.
-- `hdDensity()` builds density: softplus toe, gamma straight-line, exponential
-  shoulder toward Dmax, with `inertia/toe/shoulder/dMax` shifted by push/pull.
+- Development runs in `DEV_STEPS = 6` time steps. Each step:
+  - Per-pixel consumption: `devField[i] -= devField[i] × (demand/N) × exhaustion`,
+    where `demand = 1 − e^(−1.45·H)` and minimum developer is clamped to 0.02.
+  - Lateral diffusion: `boxBlur2D(devField, …, stepDiffRadius)` then 50/50 mix
+    of local and diffused, redistributing fresh developer from low-demand regions.
+- After the loop, `hdDensity(H, devField[i], film, pushPull)` maps exposure +
+  final developer concentration to density via softplus toe, gamma straight-line,
+  exponential shoulder.
 
 ## What's real / what's approximated
 
-- ✅ The H-D curve is the real model, with toe/gamma/shoulder all present and a
-  physically sensible functional form (softplus toe, exponential saturation).
-- ✅ Exhaustion-then-diffusion of developer is the correct chemical mechanism,
-  and density is driven by a spatially-varying developer concentration — this is
-  the genuine reaction-diffusion idea, not a fake.
+- ✅ The H-D curve is the real model with toe/gamma/shoulder, physically sensible
+  functional form.
+- ✅ Development is now **iterative**: developer is consumed step-by-step while
+  diffusing laterally, mirroring the actual reaction-diffusion chemistry of
+  time-stepped bath development. This is the Filmulator approach.
+- ✅ Mackie lines and Eberhard adjacency overshoot **emerge from the chemistry**:
+  at a sharp boundary, the heavily exposed side exhausts its developer, and fresh
+  developer from the light side crosses over, producing the density overshoot
+  fringes naturally. The synthetic E5 pass has been retired.
 - ✅ Push/pull modifies the curve in the right directions.
-- ⚠️ It is a **single forward pass**, whereas real development (and the original
-  Filmulator) is an **iterative time-stepped reaction-diffusion** that converges.
-  The single pass approximates the steady state.
-- ⚠️ `boxBlur2D` again stands in for true diffusion (should be Gaussian-like).
-- ⚠️ Constants (`1.45`, `1.78`, overshoot `0.65`, push/pull coefficients) are
-  tuned, not derived from chemistry or sensitometry.
-- 🔗 `adjacencyDev` already produces edge enhancement here; the separate
-  Adjacency engine (Pass 5) partly **double-counts** this real effect with a
-  synthetic one — see `05-adjacency-edge-effects.md`.
+- ⚠️ `boxBlur2D` stands in for true 2-D diffusion (should be Gaussian-like).
+- ⚠️ Constants (`1.45`, `DEV_STEPS=6`, step diffusion mix 0.5, push/pull
+  coefficients) are tuned, not derived from developer chemistry or sensitometry.
 
-## Realness rating: 7/10
+## Realness rating: 8/10
 
-The most physically grounded engine: real characteristic curve plus a real
-reaction-diffusion mechanism for development. Held back from higher by the
-single-pass (vs. iterative) approximation, the box-blur diffusion kernel, and
-tuned constants.
+Iterative reaction-diffusion is now implemented: developer is consumed and
+diffused across multiple time steps, and adjacency effects emerge from the
+chemistry. The principal remaining gap is the box-blur diffusion kernel (not a
+true Gaussian PDE propagator) and tuned constants.
 
 ## Roadmap to higher realness
 
-- Make development iterative: time-step developer diffusion + consumption to
-  convergence, letting adjacency effects emerge naturally (then retire the
-  synthetic Pass 5).
-- Use a Gaussian/physical diffusion kernel.
-- Calibrate the curve against measured H-D data for each stock; derive exhaustion
-  from developer chemistry (agitation, dilution, time, temperature).
+- Replace `boxBlur2D` diffusion with a Gaussian kernel (physical PDE).
+- Calibrate the curve against measured H-D data for FP4/HP5.
+- Derive exhaustion rates from developer chemistry (agitation, dilution, time,
+  temperature); link `DEV_STEPS` to real development time.
 
 ## Progression Log
+
+### 2026-06-23 — Replaced single-pass with iterative reaction-diffusion · rating 7→8
+Implemented `DEV_STEPS = 6` time-stepped loop: each step consumes developer
+proportional to silver demand (`demand/N × exhaustion`) and then diffuses the
+field laterally via `boxBlur2D` with a per-step radius
+(`diffusionRadius / √DEV_STEPS`), blending 50/50 local + diffused. Adjacency
+overshoot (Mackie lines, Eberhard fringes) now emerge naturally from the
+chemistry at sharp boundaries — no synthetic high-pass needed.
+Retired E5 (synthetic high-pass edge engine): removed Pass 5 block, deleted
+`blurredDensity` buffer, `eberhardAmount` variable, and Eberhard HTML slider.
+Removed `adjacencyDev` overshoot hack (it was an approximation of what the
+iterative loop now does correctly). Rating raised 7→8.
 
 ### 2026-06-23 — Baseline assessment
 Documented the curve + exhaustion + diffusion model. Confirmed this is the most

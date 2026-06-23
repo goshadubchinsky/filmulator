@@ -186,7 +186,7 @@
 <div class="container">
     <div class="header">
         <h2>JS Filmulator POC</h2>
-        <p>Linear-light black-and-white negative simulation with film profiles, spectral mixing, H-D density curve, halation, Eberhard edge effect, and density-linked grain.</p>
+        <p>Linear-light black-and-white negative simulation with film profiles, spectral mixing, H-D density curve, halation, iterative reaction-diffusion development, and density-linked grain.</p>
         <div class="version-badge" id="versionBadge">version loading</div>
     </div>
 
@@ -290,14 +290,6 @@
 
         <div class="control-group">
             <div class="row">
-                <label for="eberhard">Eberhard / Mackie Edge Effect</label>
-                <span class="value" id="eberhardValue">0.00</span>
-            </div>
-            <input type="range" id="eberhard" min="0.00" max="2.00" step="0.05" value="0.00">
-        </div>
-
-        <div class="control-group">
-            <div class="row">
                 <label for="grain">Cubic Grain</label>
                 <span class="value" id="grainValue">0.00</span>
             </div>
@@ -323,7 +315,8 @@ const REFERENCE_WHITE_KELVIN = 5500;
 
 /* ENGINE MAP → engines/README.md
    E1 input/scene-linear   E2 spectral-sensitivity   E3 optical-transport
-   E4 development          E5 adjacency-edge          E6 grain   E7 print-positive */
+   E4 development (iterative Rxn-Diff; adjacency emerges — E5 retired)
+   E6 grain   E7 print-positive */
 
 // E2–E6: per-stock sensitometric + physical parameters; see engines/README.md to add stocks
 const FILM_PROFILES = {
@@ -340,7 +333,6 @@ const FILM_PROFILES = {
         halationRadius: 14,
         halationThreshold: 0.74,
         halationStrength: 0.030,
-        eberhard: 1.05,
         grain: 0.018,
         grainRadius: 1
     },
@@ -357,7 +349,6 @@ const FILM_PROFILES = {
         halationRadius: 18,
         halationThreshold: 0.70,
         halationStrength: 0.040,
-        eberhard: 0.75,
         grain: 0.032,
         grainRadius: 2
     }
@@ -391,7 +382,6 @@ const controls = {
     halation: document.getElementById('halation'),
     exhaustion: document.getElementById('exhaustion'),
     diffusionRadius: document.getElementById('diffusionRadius'),
-    eberhard: document.getElementById('eberhard'),
     grain: document.getElementById('grain'),
     printContrast: document.getElementById('printContrast')
 };
@@ -406,7 +396,6 @@ const values = {
     halation: document.getElementById('halationValue'),
     exhaustion: document.getElementById('exhaustionValue'),
     diffusionRadius: document.getElementById('diffusionRadiusValue'),
-    eberhard: document.getElementById('eberhardValue'),
     grain: document.getElementById('grainValue'),
     printContrast: document.getElementById('printContrastValue')
 };
@@ -494,7 +483,6 @@ function updateControlLabels() {
     values.halation.innerText = parseFloat(controls.halation.value).toFixed(2);
     values.exhaustion.innerText = parseFloat(controls.exhaustion.value).toFixed(2);
     values.diffusionRadius.innerText = `${parseInt(controls.diffusionRadius.value, 10)} px`;
-    values.eberhard.innerText = parseFloat(controls.eberhard.value).toFixed(2);
     values.grain.innerText = parseFloat(controls.grain.value).toFixed(2);
     values.printContrast.innerText = parseFloat(controls.printContrast.value).toFixed(2);
 }
@@ -639,7 +627,6 @@ function processImage(version) {
     const halationAmount = parseFloat(controls.halation.value);
     const exhaustion = parseFloat(controls.exhaustion.value);
     const diffusionRadius = parseInt(controls.diffusionRadius.value, 10);
-    const eberhardAmount = parseFloat(controls.eberhard.value);
     const grainAmount = parseFloat(controls.grain.value);
     const printContrast = parseFloat(controls.printContrast.value);
 
@@ -650,7 +637,6 @@ function processImage(version) {
     const localDeveloper = new Float32Array(size);
     const diffusedDeveloper = new Float32Array(size);
     const density = new Float32Array(size);
-    const blurredDensity = new Float32Array(size);
     const grainField = new Float32Array(size);
     const grainBlurred = new Float32Array(size);
 
@@ -691,31 +677,30 @@ function processImage(version) {
         }
     }
 
-    // PASS 3 [E4]: local developer exhaustion and lateral chemical diffusion.
-    for (let i = 0; i < size; i++) {
-        const silverDemand = 1.0 - Math.exp(-1.45 * scatteredExposure[i]);
-        localDeveloper[i] = Math.exp(-exhaustion * silverDemand);
-    }
-    boxBlur2D(localDeveloper, diffusedDeveloper, imgWidth, imgHeight, diffusionRadius);
-
-    // PASS 4 [E4]: H-D characteristic curve in density space.
-    for (let i = 0; i < size; i++) {
-        const devLocal = localDeveloper[i];
-        const devBlur = diffusedDeveloper[i];
-        const adjacencyDev = clamp(devBlur + (devBlur - devLocal) * 0.65, 0.035, 1.20);
-        density[i] = hdDensity(scatteredExposure[i], adjacencyDev, film, pushPull);
-    }
-
-    // PASS 5 [E5]: Eberhard / Mackie effect as adaptive high-pass in density domain.
-    const edgeRadius = Math.max(1, Math.round(diffusionRadius * 0.45));
-    boxBlur2D(density, blurredDensity, imgWidth, imgHeight, edgeRadius);
-    const edgeGain = film.eberhard * eberhardAmount * (1 + Math.max(0, pushPull) * 0.16);
-    if (edgeGain > 0) {
+    // PASSES 3–4 [E4]: iterative reaction-diffusion development — engines/04-development.md.
+    // Developer is consumed per step in proportion to silver demand; fresh developer
+    // diffuses laterally from underexposed regions into exhausted ones each step.
+    // Mackie lines and Eberhard adjacency overshoot emerge from the chemistry.
+    const DEV_STEPS = 6;
+    const devField = localDeveloper;
+    devField.fill(1.0);
+    const stepDiffRadius = diffusionRadius > 0
+        ? Math.max(1, Math.round(diffusionRadius / Math.sqrt(DEV_STEPS)))
+        : 0;
+    for (let step = 0; step < DEV_STEPS; step++) {
         for (let i = 0; i < size; i++) {
-            const hp = density[i] - blurredDensity[i];
-            const edgeMask = smoothstep(0.006, 0.075, Math.abs(hp));
-            density[i] = clamp(density[i] + hp * edgeGain * edgeMask, film.dMin, film.dMax);
+            const demand = (1.0 - Math.exp(-1.45 * scatteredExposure[i])) / DEV_STEPS;
+            devField[i] = Math.max(0.02, devField[i] - devField[i] * demand * exhaustion);
         }
+        if (stepDiffRadius > 0) {
+            boxBlur2D(devField, diffusedDeveloper, imgWidth, imgHeight, stepDiffRadius);
+            for (let i = 0; i < size; i++) {
+                devField[i] = 0.5 * devField[i] + 0.5 * diffusedDeveloper[i];
+            }
+        }
+    }
+    for (let i = 0; i < size; i++) {
+        density[i] = hdDensity(scatteredExposure[i], devField[i], film, pushPull);
     }
 
     // PASS 6 [E6+E7]: spatially correlated grain, then positive print output.

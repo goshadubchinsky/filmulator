@@ -42,7 +42,7 @@ The app is structured as three sections within `index.html`:
 
 Two top-level constant tables drive the simulation:
 
-- **`FILM_PROFILES`** (`fp4`, `hp5`) — per-stock physical parameters: panchromatic spectral weights, H-D curve shape (`gamma`, `inertia`, `toe`, `shoulder`, `dMin`, `dMax`), optical scatter radius, halation radius/threshold/strength, Eberhard coefficient, and grain parameters.
+- **`FILM_PROFILES`** (`fp4`, `hp5`) — per-stock physical parameters: panchromatic spectral weights, H-D curve shape (`gamma`, `inertia`, `toe`, `shoulder`, `dMin`, `dMax`), optical scatter radius, halation radius/threshold/strength, and grain parameters.
 - **`FILTERS`** — six optical filter presets, each carrying per-channel multipliers and an EV correction.
 
 ### Engines
@@ -57,8 +57,8 @@ good it looks — and a **progression log**.
 | 1 | Input / Scene-Linear | 4/10 | pre-Pass 1 |
 | 2 | Spectral Sensitivity | 5/10 | Pass 1 |
 | 3 | Optical Transport | 6/10 | Pass 2 |
-| 4 | Development | 7/10 | Passes 3–4 |
-| 5 | Adjacency / Edge Effects | 3/10 | Pass 5 |
+| 4 | Development | 8/10 | Passes 3–4 (iterative Rxn-Diff) |
+| 5 | Adjacency / Edge Effects | **RETIRED** | emerges from E4 |
 | 6 | Grain | 3/10 | Pass 6 |
 | 7 | Print / Positive | 4/10 | Pass 6 |
 
@@ -78,16 +78,17 @@ Images are capped to 1100 px on the longest edge on load. `buildLinearSourceBuff
 | Pass | What it does |
 |------|-------------|
 | 1 | Scene-linear RGB → panchromatic film exposure via `effectiveSpectralWeights()` (folds white balance + optical filter into channel mixing weights, then normalizes) |
-| 2 | Optical transport: emulsion scatter (box blur + partial mix) and monochrome halation (box blur of highlight-only source, added back to exposure) |
-| 3 | Local developer exhaustion (per-pixel) + lateral chemical diffusion (box blur of developer field) |
-| 4 | H-D characteristic curve via `hdDensity()` — softplus toe, exponential shoulder saturation, push/pull-modified parameters |
-| 5 | Eberhard/Mackie edge effect — adaptive high-pass in density domain using box blur |
+| 2 | Optical transport: emulsion scatter (`gaussianBlur2D`) and monochrome halation (`exponentialBlur2D` of highlight-only source, added back to exposure) |
+| 3–4 | Iterative reaction-diffusion development (6 steps): per-step developer consumption + lateral `boxBlur2D` diffusion; adjacency effects (Mackie lines) emerge from chemistry; then `hdDensity()` maps final developer concentration to density |
+| 5 | *(retired — E5 synthetic high-pass deleted; edge effects emerge from Pass 3–4)* |
 | 6 | Grain (spatially correlated hash noise → box blur → density-weighted amplitude), then `printDensityToPositive()` for final positive tones → sRGB output bytes |
 
 ### Key functions
 
 - **`hdDensity(exposure, developer, film, pushPull)`** — implements the Hurter-Driffield density curve. Push shifts toe and compresses the shoulder; pull does the reverse.
-- **`boxBlur2D(src, dst, w, h, radius)`** — separable (horizontal then vertical) sliding-window box blur on `Float32Array` with clamped edges. Used for scatter, halation, diffusion, edge detection, and grain.
+- **`boxBlur2D(src, dst, w, h, radius)`** — separable (horizontal then vertical) sliding-window box blur on `Float32Array` with clamped edges. Used for E4 iterative diffusion and E6 grain.
+- **`gaussianBlur2D(src, dst, w, h, radius)`** — three-pass box-blur approximation of a Gaussian (σ ≈ radius); used for E3 scatter.
+- **`exponentialBlur2D(src, dst, w, h, sigma)`** — separable causal+anticausal first-order IIR implementing Frieser exponential LSF e^(−|x|/σ); used for E3 halation.
 - **`effectiveSpectralWeights(base, wb, filter)`** — multiplies base film weights by white-balance multipliers and filter multipliers, then normalizes so the total channel weight sums to 1.
 - **`filmBalanceMultipliers(filmKelvin)`** — converts a color temperature (Kelvin) to per-channel multipliers relative to the 5500 K reference white via `kelvinToSrgbWhite()` (Tanner Helland approximation).
 - **`printDensityToPositive(dNorm, contrast)`** — maps normalized negative density to positive print tones using a `tanh`-based S-curve contrast operator followed by a `smoothstep` display toe/shoulder.

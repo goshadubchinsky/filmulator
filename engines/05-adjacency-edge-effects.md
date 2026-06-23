@@ -2,9 +2,13 @@
 
 *Physics reference: `research/physics-of-film.md` §3.3 — Eberhard Effect and Mackie Lines as emergent consequence of reaction-diffusion PDEs*
 
-**Realness: 3/10**
-**Pipeline stage:** Pass 5
-**Source:** `blurredDensity`, `edgeRadius`, `edgeGain` (`film.eberhard`, `eberhardAmount`), the high-pass add, `smoothstep()` edge mask
+**STATUS: RETIRED 2026-06-23** — adjacency effects now emerge from the iterative
+reaction-diffusion in E4. Pass 5, the Eberhard slider, and all synthetic
+high-pass code have been removed.
+
+**Former realness: 3/10**
+**Former pipeline stage:** Pass 5 (deleted)
+**Former source:** `blurredDensity`, `edgeRadius`, `edgeGain` (`film.eberhard`, `eberhardAmount`), the high-pass add, `smoothstep()` edge mask
 
 ## Purpose
 
@@ -59,6 +63,14 @@ the clearest "looks-like" rather than "is" engine.
   parameters as development so the two are consistent, and use a physical kernel.
 
 ## Progression Log
+
+### 2026-06-23 — Engine retired; effect now emerges from E4 iterative Rxn-Diff
+E4 was upgraded to iterative reaction-diffusion (DEV_STEPS = 6). Mackie lines
+and Eberhard adjacency fringes emerge from the chemistry at sharp boundaries —
+exactly as described in §3.3 of the physics reference. The synthetic high-pass
+(Pass 5, `blurredDensity`, Eberhard slider, `film.eberhard` usage) was deleted
+entirely. Engine retires at 3/10: correct target, wrong mechanism — superseded
+by the real thing.
 
 ### 2026-06-23 — Baseline assessment
 Documented the high-pass implementation. Identified it as a synthetic stand-in
