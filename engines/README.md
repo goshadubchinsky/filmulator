@@ -27,7 +27,7 @@ modeling the cause.
 |---|--------|:--------:|---------------------|
 | 1 | [Input / Scene-Linear](01-input-scene-linear.md) | 4/10 | sRGB linearization is exact, but a processed 8-bit JPEG is treated as scene radiance |
 | 2 | [Spectral Sensitivity](02-spectral-sensitivity.md) | 5/10 | 3-sample RGB stand-in for a continuous spectral integral; weights are tuned, not measured |
-| 3 | [Optical Transport](03-optical-transport.md) | 5/10 | halation is a real phenomenon modeled qualitatively; the box-blur PSF is not physical |
+| 3 | [Optical Transport](03-optical-transport.md) | 6/10 | halation uses Frieser exponential LSF (IIR); scatter uses Gaussian approx; separable kernels, not radially symmetric |
 | 4 | [Development](04-development.md) | 7/10 | genuine H-D curve plus developer exhaustion and lateral diffusion; single-pass vs. iterative |
 | 5 | [Adjacency / Edge Effects](05-adjacency-edge-effects.md) | 3/10 | a real effect, but synthesized as a high-pass sharpen instead of emerging from diffusion |
 | 6 | [Grain](06-grain.md) | 3/10 | procedural noise texture, not a stochastic silver-halide crystal model |

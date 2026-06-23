@@ -596,7 +596,7 @@ function processImage(version) {
 
         const scatRadius = Math.max(0, Math.round(fE3.opticalRadius * scatterAmt * 2));
         if (scatRadius > 0) {
-            boxBlur2D(rawE, scatE, imgWidth, imgHeight, scatRadius);
+            gaussianBlur2D(rawE, scatE, imgWidth, imgHeight, scatRadius);
             const scatMix = clamp(0.18 * scatterAmt, 0, 0.45);
             for (let i = 0; i < size; i++) scatE[i] = rawE[i] * (1 - scatMix) + scatE[i] * scatMix;
         } else {
@@ -604,7 +604,7 @@ function processImage(version) {
         }
 
         const halRadius = Math.max(1, Math.round(fE3.halationRadius * (0.7 + halAmt * 0.9)));
-        boxBlur2D(halSrc, halMap, imgWidth, imgHeight, halRadius);
+        exponentialBlur2D(halSrc, halMap, imgWidth, imgHeight, halRadius);
         // Display gain ×20 in E3 bypass — halation is calibrated to work through the H-D
         // curve where shoulder compression amplifies small exposure additions. Without the
         // curve, the raw addition (~0.03 × blurred highlights) is sub-pixel. ×20 makes it
@@ -673,7 +673,7 @@ function processImage(version) {
     // PASS 2 [E3]: optical transport before development: emulsion scatter + monochrome halation.
     const scatterRadius = Math.max(0, Math.round(film.opticalRadius * opticalScatter * 2));
     if (scatterRadius > 0) {
-        boxBlur2D(rawExposure, scatteredExposure, imgWidth, imgHeight, scatterRadius);
+        gaussianBlur2D(rawExposure, scatteredExposure, imgWidth, imgHeight, scatterRadius);
         const scatterMix = clamp(0.18 * opticalScatter, 0, 0.45);
         for (let i = 0; i < size; i++) {
             scatteredExposure[i] = rawExposure[i] * (1 - scatterMix) + scatteredExposure[i] * scatterMix;
@@ -683,7 +683,7 @@ function processImage(version) {
     }
 
     const halRadius = Math.max(1, Math.round(film.halationRadius * (0.7 + halationAmount * 0.9)));
-    boxBlur2D(halationSource, halationMap, imgWidth, imgHeight, halRadius);
+    exponentialBlur2D(halationSource, halationMap, imgWidth, imgHeight, halRadius);
     const halStrength = film.halationStrength * halationAmount;
     if (halStrength > 0) {
         for (let i = 0; i < size; i++) {
@@ -807,7 +807,7 @@ function printDensityToPositive(dNorm, contrast) { // E7 → engines/07-print-po
     return smoothstep(0, 1, v);
 }
 
-function boxBlur2D(src, dst, w, h, radius) { // shared kernel used by E3 E4 E5 E6
+function boxBlur2D(src, dst, w, h, radius) { // shared kernel: E4 E5 E6 (E3 now uses gaussianBlur2D / exponentialBlur2D)
     if (radius <= 0) {
         dst.set(src);
         return;
@@ -847,6 +847,43 @@ function boxBlur2D(src, dst, w, h, radius) { // shared kernel used by E3 E4 E5 E
             const addY = clampInt(y + radius + 1, 0, h - 1);
             sum += temp[addY * w + x] - temp[removeY * w + x];
         }
+    }
+}
+
+function gaussianBlur2D(src, dst, w, h, radius) { // E3 scatter — three-pass box blur ≈ Gaussian (σ ≈ radius)
+    if (radius <= 0) { dst.set(src); return; }
+    const t1 = new Float32Array(w * h);
+    const t2 = new Float32Array(w * h);
+    boxBlur2D(src, t1, w, h, radius);
+    boxBlur2D(t1, t2, w, h, radius);
+    boxBlur2D(t2, dst, w, h, radius);
+}
+
+function exponentialBlur2D(src, dst, w, h, sigma) { // E3 halation — separable IIR matching Frieser exponential LSF
+    // Causal + anticausal first-order IIR: y[n] = (y_fwd[n] + y_bwd[n] − α·x[n]) / (2−α)
+    // Gives exact two-sided exponential falloff e^(−|x|/σ) along each axis.
+    if (sigma <= 0) { dst.set(src); return; }
+    const alpha = 1.0 - Math.exp(-1.0 / Math.max(sigma, 0.5));
+    const norm = 2.0 - alpha;
+    const temp = new Float32Array(w * h);
+    const fwd = new Float32Array(Math.max(w, h));
+    const bwd = new Float32Array(Math.max(w, h));
+
+    for (let y = 0; y < h; y++) {
+        const row = y * w;
+        fwd[0] = src[row];
+        for (let x = 1; x < w; x++) fwd[x] = alpha * src[row + x] + (1 - alpha) * fwd[x - 1];
+        bwd[w - 1] = src[row + w - 1];
+        for (let x = w - 2; x >= 0; x--) bwd[x] = alpha * src[row + x] + (1 - alpha) * bwd[x + 1];
+        for (let x = 0; x < w; x++) temp[row + x] = (fwd[x] + bwd[x] - alpha * src[row + x]) / norm;
+    }
+
+    for (let x = 0; x < w; x++) {
+        fwd[0] = temp[x];
+        for (let y = 1; y < h; y++) fwd[y] = alpha * temp[y * w + x] + (1 - alpha) * fwd[y - 1];
+        bwd[h - 1] = temp[(h - 1) * w + x];
+        for (let y = h - 2; y >= 0; y--) bwd[y] = alpha * temp[y * w + x] + (1 - alpha) * bwd[y + 1];
+        for (let y = 0; y < h; y++) dst[y * w + x] = (fwd[y] + bwd[y] - alpha * temp[y * w + x]) / norm;
     }
 }
 

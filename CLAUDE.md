@@ -56,7 +56,7 @@ good it looks — and a **progression log**.
 |---|--------|:--------:|--------|
 | 1 | Input / Scene-Linear | 4/10 | pre-Pass 1 |
 | 2 | Spectral Sensitivity | 5/10 | Pass 1 |
-| 3 | Optical Transport | 5/10 | Pass 2 |
+| 3 | Optical Transport | 6/10 | Pass 2 |
 | 4 | Development | 7/10 | Passes 3–4 |
 | 5 | Adjacency / Edge Effects | 3/10 | Pass 5 |
 | 6 | Grain | 3/10 | Pass 6 |
