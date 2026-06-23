@@ -375,6 +375,8 @@ const FILTERS = {
     blue:   { label: 'blue',   r: 0.22, g: 0.55, b: 1.25, ev: -1.05 }
 };
 
+const GRADE_NAMES = { 0: 'Extra Soft', 1: 'Soft', 2: 'Normal', 3: 'Hard', 4: 'Very Hard', 5: 'Ultra Hard' };
+
 // [E4] developer dilution → exhaustion coefficient (how aggressively developer is consumed locally)
 const DILUTION_EXHAUSTION = {
     stock: 0.0, '1+1': 0.5, '1+3': 1.0,
@@ -479,8 +481,6 @@ Object.values(controls).forEach((control) => {
 debugModeSelect.addEventListener('change', () => {
     if (originalImgData) scheduleProcess();
 });
-
-const GRADE_NAMES = { 0: 'Extra Soft', 1: 'Soft', 2: 'Normal', 3: 'Hard', 4: 'Very Hard', 5: 'Ultra Hard' };
 
 function updateControlLabels() {
     const film = FILM_PROFILES[controls.filmStock.value];
