@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Core Design Philosophy
+
+This project simulates film photography. The goal is not to make images *look like* film through visual tricks or aesthetic approximations — it is to model what film actually does, physically and chemically, step by step. Individual calculations may be simplified or approximated for browser performance, but every approximation must be grounded in the real phenomenon it represents, and the output must look genuinely real, not stylized.
+
+When adding or changing anything: ask what the physical process actually is, model that, then simplify only if necessary. Do not add parameters or effects that are purely aesthetic knobs with no physical basis.
+
 ## Project Overview
 
 **JS Filmulator POC** — a browser-based black-and-white film simulation tool. The entire application lives in a single `index.html` file with no build system, no package manager, and no external dependencies.
