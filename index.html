@@ -175,6 +175,17 @@
             gap: 12px;
         }
 
+        .section-label {
+            font-size: 10px;
+            font-weight: 750;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--muted);
+            border-top: 1px solid var(--border);
+            padding-top: 10px;
+            margin-top: 2px;
+        }
+
         @media (max-width: 520px) {
             .mini-grid { grid-template-columns: 1fr; }
             body { padding: 12px; }
@@ -223,19 +234,19 @@
                 </div>
                 <select id="colorFilter">
                     <option value="none">None</option>
-                    <option value="yellow">Yellow filter</option>
-                    <option value="orange">Orange filter</option>
-                    <option value="red">Red filter</option>
-                    <option value="green">Green filter</option>
-                    <option value="blue">Blue filter</option>
+                    <option value="yellow">Yellow</option>
+                    <option value="orange">Orange</option>
+                    <option value="red">Red</option>
+                    <option value="green">Green</option>
+                    <option value="blue">Blue</option>
                 </select>
             </div>
         </div>
 
         <div class="control-group">
             <div class="row">
-                <label for="filmWhiteBalance">Film / Illuminant Balance</label>
-                <span class="value" id="filmWhiteBalanceValue">5500 K Â· daylight neutral</span>
+                <label for="filmWhiteBalance">Illuminant / White Balance</label>
+                <span class="value" id="filmWhiteBalanceValue">5500 K · daylight neutral</span>
             </div>
             <input type="range" id="filmWhiteBalance" min="2500" max="10000" step="100" value="5500">
         </div>
@@ -248,60 +259,56 @@
             <input type="range" id="exposureStops" min="-3.0" max="3.0" step="0.1" value="0.0">
         </div>
 
+        <div class="section-label">Development</div>
+
         <div class="control-group">
             <div class="row">
-                <label for="pushPull">Development Push / Pull</label>
+                <label for="dilution">Developer Dilution</label>
+                <span class="value" id="dilutionValue">1+1</span>
+            </div>
+            <select id="dilution">
+                <option value="stock">Stock (1+0) — fine grain, minimal adjacency</option>
+                <option value="1+1" selected>1+1 — balanced grain &amp; sharpness</option>
+                <option value="1+3">1+3 — sharper, visible adjacency</option>
+                <option value="1+9">1+9 — high acutance, strong adjacency</option>
+                <option value="1+25">1+25 — very high acutance</option>
+                <option value="1+50">1+50 — extreme acutance / Rodinal-style</option>
+                <option value="stand">Stand 1+100 — maximum local exhaustion</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <div class="row">
+                <label for="devTime">Development Time</label>
+                <span class="value" id="devTimeValue">7.0 min</span>
+            </div>
+            <input type="range" id="devTime" min="4.0" max="20.0" step="0.5" value="7.0">
+        </div>
+
+        <div class="control-group">
+            <div class="row">
+                <label for="devTemp">Developer Temperature</label>
+                <span class="value" id="devTempValue">20.0 °C</span>
+            </div>
+            <input type="range" id="devTemp" min="18.0" max="24.0" step="0.5" value="20.0">
+        </div>
+
+        <div class="control-group">
+            <div class="row">
+                <label for="pushPull">Push / Pull</label>
                 <span class="value" id="pushPullValue">normal</span>
             </div>
             <input type="range" id="pushPull" min="-1.0" max="2.0" step="0.1" value="0.0">
         </div>
 
-        <div class="control-group">
-            <div class="row">
-                <label for="opticalScatter">Emulsion Scatter / MTF Loss</label>
-                <span class="value" id="opticalScatterValue">0.00</span>
-            </div>
-            <input type="range" id="opticalScatter" min="0.00" max="2.00" step="0.05" value="0.00">
-        </div>
+        <div class="section-label">Print</div>
 
         <div class="control-group">
             <div class="row">
-                <label for="halation">B&W Halation / Base Fog</label>
-                <span class="value" id="halationValue">0.00</span>
+                <label for="paperGrade">Paper Grade</label>
+                <span class="value" id="paperGradeValue">Grade 2 — Normal</span>
             </div>
-            <input type="range" id="halation" min="0.00" max="2.00" step="0.05" value="0.00">
-        </div>
-
-        <div class="control-group">
-            <div class="row">
-                <label for="exhaustion">Developer Exhaustion</label>
-                <span class="value" id="exhaustionValue">0.00</span>
-            </div>
-            <input type="range" id="exhaustion" min="0.00" max="3.00" step="0.05" value="0.00">
-        </div>
-
-        <div class="control-group">
-            <div class="row">
-                <label for="diffusionRadius">Chemical Diffusion Radius</label>
-                <span class="value" id="diffusionRadiusValue">0 px</span>
-            </div>
-            <input type="range" id="diffusionRadius" min="0" max="36" step="1" value="0">
-        </div>
-
-        <div class="control-group">
-            <div class="row">
-                <label for="grain">Cubic Grain</label>
-                <span class="value" id="grainValue">0.00</span>
-            </div>
-            <input type="range" id="grain" min="0.00" max="2.50" step="0.05" value="0.00">
-        </div>
-
-        <div class="control-group">
-            <div class="row">
-                <label for="printContrast">Positive Print Contrast</label>
-                <span class="value" id="printContrastValue">1.00</span>
-            </div>
-            <input type="range" id="printContrast" min="0.60" max="1.90" step="0.05" value="1.00">
+            <input type="range" id="paperGrade" min="0" max="5" step="0.5" value="2">
         </div>
     </div>
 
@@ -333,6 +340,8 @@ const FILM_PROFILES = {
         halationRadius: 14,
         halationThreshold: 0.74,
         halationStrength: 0.030,
+        nominalDevTime: 6.5,  // minutes, D-76 stock at 20 °C (Ilford spec)
+        diffusionBase: 10,    // lateral diffusion radius (px) at nominal time
         grain: 0.018,
         grainRadius: 1
     },
@@ -349,6 +358,8 @@ const FILM_PROFILES = {
         halationRadius: 18,
         halationThreshold: 0.70,
         halationStrength: 0.040,
+        nominalDevTime: 6.5,  // minutes, D-76 stock at 20 °C (Ilford spec)
+        diffusionBase: 14,    // coarser emulsion, wider diffusion at nominal time
         grain: 0.032,
         grainRadius: 2
     }
@@ -364,6 +375,12 @@ const FILTERS = {
     blue:   { label: 'blue',   r: 0.22, g: 0.55, b: 1.25, ev: -1.05 }
 };
 
+// [E4] developer dilution → exhaustion coefficient (how aggressively developer is consumed locally)
+const DILUTION_EXHAUSTION = {
+    stock: 0.0, '1+1': 0.5, '1+3': 1.0,
+    '1+9': 1.8, '1+25': 2.4, '1+50': 2.8, stand: 3.2
+};
+
 const upload = document.getElementById('upload');
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -377,13 +394,11 @@ const controls = {
     colorFilter: document.getElementById('colorFilter'),
     filmWhiteBalance: document.getElementById('filmWhiteBalance'),
     exposureStops: document.getElementById('exposureStops'),
+    dilution: document.getElementById('dilution'),
+    devTime: document.getElementById('devTime'),
+    devTemp: document.getElementById('devTemp'),
     pushPull: document.getElementById('pushPull'),
-    opticalScatter: document.getElementById('opticalScatter'),
-    halation: document.getElementById('halation'),
-    exhaustion: document.getElementById('exhaustion'),
-    diffusionRadius: document.getElementById('diffusionRadius'),
-    grain: document.getElementById('grain'),
-    printContrast: document.getElementById('printContrast')
+    paperGrade: document.getElementById('paperGrade')
 };
 
 const values = {
@@ -391,13 +406,11 @@ const values = {
     colorFilter: document.getElementById('colorFilterValue'),
     filmWhiteBalance: document.getElementById('filmWhiteBalanceValue'),
     exposureStops: document.getElementById('exposureStopsValue'),
+    dilution: document.getElementById('dilutionValue'),
+    devTime: document.getElementById('devTimeValue'),
+    devTemp: document.getElementById('devTempValue'),
     pushPull: document.getElementById('pushPullValue'),
-    opticalScatter: document.getElementById('opticalScatterValue'),
-    halation: document.getElementById('halationValue'),
-    exhaustion: document.getElementById('exhaustionValue'),
-    diffusionRadius: document.getElementById('diffusionRadiusValue'),
-    grain: document.getElementById('grainValue'),
-    printContrast: document.getElementById('printContrastValue')
+    paperGrade: document.getElementById('paperGradeValue')
 };
 
 let originalImgData = null;
@@ -467,24 +480,29 @@ debugModeSelect.addEventListener('change', () => {
     if (originalImgData) scheduleProcess();
 });
 
+const GRADE_NAMES = { 0: 'Extra Soft', 1: 'Soft', 2: 'Normal', 3: 'Hard', 4: 'Very Hard', 5: 'Ultra Hard' };
+
 function updateControlLabels() {
     const film = FILM_PROFILES[controls.filmStock.value];
     const filter = FILTERS[controls.colorFilter.value];
     const filmK = parseInt(controls.filmWhiteBalance.value, 10);
     const ev = parseFloat(controls.exposureStops.value);
     const push = parseFloat(controls.pushPull.value);
+    const devTime = parseFloat(controls.devTime.value);
+    const devTemp = parseFloat(controls.devTemp.value);
+    const paperGrade = parseFloat(controls.paperGrade.value);
 
     values.filmStock.innerText = film.label;
     values.colorFilter.innerText = filter.label;
-    values.filmWhiteBalance.innerText = `${filmK} K Â· ${describeFilmBalance(filmK)}`;
+    values.filmWhiteBalance.innerText = `${filmK} K · ${describeFilmBalance(filmK)}`;
     values.exposureStops.innerText = `${ev >= 0 ? '+' : ''}${ev.toFixed(1)} EV`;
-    values.pushPull.innerText = push === 0 ? 'normal' : `${push > 0 ? '+' : ''}${push.toFixed(1)} dev`;
-    values.opticalScatter.innerText = parseFloat(controls.opticalScatter.value).toFixed(2);
-    values.halation.innerText = parseFloat(controls.halation.value).toFixed(2);
-    values.exhaustion.innerText = parseFloat(controls.exhaustion.value).toFixed(2);
-    values.diffusionRadius.innerText = `${parseInt(controls.diffusionRadius.value, 10)} px`;
-    values.grain.innerText = parseFloat(controls.grain.value).toFixed(2);
-    values.printContrast.innerText = parseFloat(controls.printContrast.value).toFixed(2);
+    values.dilution.innerText = controls.dilution.options[controls.dilution.selectedIndex].value === 'stock'
+        ? 'Stock (1+0)' : controls.dilution.value;
+    values.devTime.innerText = `${devTime.toFixed(1)} min`;
+    values.devTemp.innerText = `${devTemp.toFixed(1)} °C`;
+    values.pushPull.innerText = push === 0 ? 'normal' : `${push > 0 ? '+' : ''}${push.toFixed(1)} stop${Math.abs(push) !== 1.0 ? 's' : ''}`;
+    const gradeName = GRADE_NAMES[paperGrade];
+    values.paperGrade.innerText = `Grade ${paperGrade % 1 === 0 ? paperGrade.toFixed(0) : paperGrade.toFixed(1)}${gradeName ? ' — ' + gradeName : ''}`;
 }
 
 function scheduleProcess() {
@@ -561,15 +579,14 @@ function processImage(version) {
     }
 
     // [E3] Optical transport bypass: E1+E2+E3 (scatter + halation) → sRGB directly.
-    // No H-D curve or downstream effects. Use scatter and halation sliders to observe each.
+    // Applied at stock-defined levels. Halation display is boosted ×20 (diagnostic only)
+    // because halation strength is calibrated relative to the H-D curve's shoulder compression.
     if (debugMode === 'e3') {
         const fE3 = FILM_PROFILES[controls.filmStock.value];
         const flE3 = FILTERS[controls.colorFilter.value];
         const wbE3 = filmBalanceMultipliers(parseInt(controls.filmWhiteBalance.value, 10));
         const spectralE3 = effectiveSpectralWeights(fE3.weights, wbE3, flE3);
         const expMulE3 = Math.pow(2, parseFloat(controls.exposureStops.value) + flE3.ev);
-        const scatterAmt = parseFloat(controls.opticalScatter.value);
-        const halAmt = parseFloat(controls.halation.value);
 
         const rawE = new Float32Array(size);
         const scatE = new Float32Array(size);
@@ -582,27 +599,19 @@ function processImage(version) {
             halSrc[i] = smoothThreshold(h, fE3.halationThreshold, fE3.halationThreshold + 0.65) * h;
         }
 
-        const scatRadius = Math.max(0, Math.round(fE3.opticalRadius * scatterAmt * 2));
+        const scatRadius = Math.max(0, Math.round(fE3.opticalRadius * 2));
         if (scatRadius > 0) {
             gaussianBlur2D(rawE, scatE, imgWidth, imgHeight, scatRadius);
-            const scatMix = clamp(0.18 * scatterAmt, 0, 0.45);
-            for (let i = 0; i < size; i++) scatE[i] = rawE[i] * (1 - scatMix) + scatE[i] * scatMix;
+            for (let i = 0; i < size; i++) scatE[i] = rawE[i] * 0.82 + scatE[i] * 0.18;
         } else {
             scatE.set(rawE);
         }
 
-        const halRadius = Math.max(1, Math.round(fE3.halationRadius * (0.7 + halAmt * 0.9)));
-        exponentialBlur2D(halSrc, halMap, imgWidth, imgHeight, halRadius);
-        // Display gain ×20 in E3 bypass — halation is calibrated to work through the H-D
-        // curve where shoulder compression amplifies small exposure additions. Without the
-        // curve, the raw addition (~0.03 × blurred highlights) is sub-pixel. ×20 makes it
-        // visible here for engine testing only; this multiplier is not in the live pipeline.
-        const halStrength = fE3.halationStrength * halAmt * 20;
+        exponentialBlur2D(halSrc, halMap, imgWidth, imgHeight, fE3.halationRadius);
+        // ×20 display boost: halation is calibrated for the H-D shoulder; raw addition is sub-pixel without it.
         let maxHalSrc = 0;
         for (let i = 0; i < size; i++) if (halSrc[i] > maxHalSrc) maxHalSrc = halSrc[i];
-        if (halStrength > 0) {
-            for (let i = 0; i < size; i++) scatE[i] += halMap[i] * halStrength;
-        }
+        for (let i = 0; i < size; i++) scatE[i] += halMap[i] * fE3.halationStrength * 20;
 
         for (let i = 0; i < size; i++) {
             const idx = i * 4;
@@ -623,12 +632,21 @@ function processImage(version) {
     const exposureEV = parseFloat(controls.exposureStops.value) + filter.ev;
     const exposureMultiplier = Math.pow(2, exposureEV);
     const pushPull = parseFloat(controls.pushPull.value);
-    const opticalScatter = parseFloat(controls.opticalScatter.value);
-    const halationAmount = parseFloat(controls.halation.value);
-    const exhaustion = parseFloat(controls.exhaustion.value);
-    const diffusionRadius = parseInt(controls.diffusionRadius.value, 10);
-    const grainAmount = parseFloat(controls.grain.value);
-    const printContrast = parseFloat(controls.printContrast.value);
+
+    // Real-world development parameters → engine values
+    const devTime = parseFloat(controls.devTime.value);
+    const devTemp = parseFloat(controls.devTemp.value);
+    const tempFactor = Math.pow(1.1, devTemp - 20.0);       // ~10% faster per °C above 20
+    const effectiveDevTime = devTime * tempFactor;
+    const exhaustion = DILUTION_EXHAUSTION[controls.dilution.value] ?? 0.5;
+    const diffusionRadius = Math.max(0, Math.round(effectiveDevTime * film.diffusionBase / film.nominalDevTime));
+    const grainFactor = Math.pow(effectiveDevTime / film.nominalDevTime, 0.5) * (1.0 + Math.max(0, pushPull) * 0.5);
+
+    // Paper grade → print contrast curve (grade 2 = normal = 1.00)
+    const paperGrade = parseFloat(controls.paperGrade.value);
+    const printContrast = paperGrade <= 2
+        ? 0.60 + (paperGrade / 2) * 0.40
+        : 1.00 + ((paperGrade - 2) / 3) * 0.90;
 
     const rawExposure = new Float32Array(size);
     const scatteredExposure = new Float32Array(size);
@@ -656,11 +674,12 @@ function processImage(version) {
         halationSource[i] = source * h;
     }
 
-    // PASS 2 [E3]: optical transport before development: emulsion scatter + monochrome halation.
-    const scatterRadius = Math.max(0, Math.round(film.opticalRadius * opticalScatter * 2));
+    // PASS 2 [E3]: optical transport — always applied at stock-defined levels.
+    // Scatter: fixed MTF loss from film.opticalRadius; halation: fixed from film.halationStrength.
+    const scatterRadius = Math.max(0, Math.round(film.opticalRadius * 2));
     if (scatterRadius > 0) {
         gaussianBlur2D(rawExposure, scatteredExposure, imgWidth, imgHeight, scatterRadius);
-        const scatterMix = clamp(0.18 * opticalScatter, 0, 0.45);
+        const scatterMix = 0.18;
         for (let i = 0; i < size; i++) {
             scatteredExposure[i] = rawExposure[i] * (1 - scatterMix) + scatteredExposure[i] * scatterMix;
         }
@@ -668,13 +687,9 @@ function processImage(version) {
         scatteredExposure.set(rawExposure);
     }
 
-    const halRadius = Math.max(1, Math.round(film.halationRadius * (0.7 + halationAmount * 0.9)));
-    exponentialBlur2D(halationSource, halationMap, imgWidth, imgHeight, halRadius);
-    const halStrength = film.halationStrength * halationAmount;
-    if (halStrength > 0) {
-        for (let i = 0; i < size; i++) {
-            scatteredExposure[i] += halationMap[i] * halStrength;
-        }
+    exponentialBlur2D(halationSource, halationMap, imgWidth, imgHeight, film.halationRadius);
+    for (let i = 0; i < size; i++) {
+        scatteredExposure[i] += halationMap[i] * film.halationStrength;
     }
 
     // PASSES 3–4 [E4]: iterative reaction-diffusion development — engines/04-development.md.
@@ -704,15 +719,15 @@ function processImage(version) {
     }
 
     // PASS 6 [E6+E7]: spatially correlated grain, then positive print output.
+    // Grain amplitude derived from development time and push; cluster size fixed to stock.
     for (let i = 0; i < size; i++) {
         grainField[i] = hashNoise(i * 17 + 13);
     }
-    const grainRadius = Math.max(0, Math.round(film.grainRadius * (0.6 + grainAmount * 0.9)));
-    if (grainRadius > 0) boxBlur2D(grainField, grainBlurred, imgWidth, imgHeight, grainRadius);
+    if (film.grainRadius > 0) boxBlur2D(grainField, grainBlurred, imgWidth, imgHeight, film.grainRadius);
     else grainBlurred.set(grainField);
 
     const densityRange = film.dMax - film.dMin;
-    const grainBase = film.grain * grainAmount * (1 + Math.max(0, pushPull) * 0.45);
+    const grainBase = film.grain * grainFactor;
 
     for (let i = 0; i < size; i++) {
         const idx = i * 4;
@@ -741,7 +756,8 @@ function processImage(version) {
 
     ctx.putImageData(outputImgData, 0, 0);
     const elapsed = Math.round(performance.now() - start);
-    statusDiv.innerText = `Done in ${elapsed} ms Â· ${APP_VERSION}`;
+    const dilLabel = controls.dilution.value === 'stock' ? '1+0' : controls.dilution.value;
+    statusDiv.innerText = `${film.label} · D-76 ${dilLabel} · ${devTime.toFixed(1)} min @ ${devTemp.toFixed(0)} °C · grade ${paperGrade % 1 === 0 ? paperGrade.toFixed(0) : paperGrade.toFixed(1)} · ${elapsed} ms`;
 }
 
 function effectiveSpectralWeights(base, wb, filter) { // E2 → engines/02-spectral-sensitivity.md
