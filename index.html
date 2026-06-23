@@ -199,6 +199,7 @@
             <option value="off">Off — full pipeline</option>
             <option value="e1">E1: BT.709 identity — linearise only, no film</option>
             <option value="e2">E2: spectral weights only — no H-D curve or effects</option>
+            <option value="e3">E3: + scatter &amp; halation — no H-D curve or effects</option>
         </select>
     </div>
 
@@ -568,6 +569,56 @@ function processImage(version) {
         if (version !== processVersion) return;
         ctx.putImageData(outputImgData, 0, 0);
         statusDiv.innerText = `E2 spectral bypass · ${controls.filmStock.value.toUpperCase()} · ${Math.round(performance.now() - start)} ms`;
+        return;
+    }
+
+    // [E3] Optical transport bypass: E1+E2+E3 (scatter + halation) → sRGB directly.
+    // No H-D curve or downstream effects. Use scatter and halation sliders to observe each.
+    if (debugMode === 'e3') {
+        const fE3 = FILM_PROFILES[controls.filmStock.value];
+        const flE3 = FILTERS[controls.colorFilter.value];
+        const wbE3 = filmBalanceMultipliers(parseInt(controls.filmWhiteBalance.value, 10));
+        const spectralE3 = effectiveSpectralWeights(fE3.weights, wbE3, flE3);
+        const expMulE3 = Math.pow(2, parseFloat(controls.exposureStops.value) + flE3.ev);
+        const scatterAmt = parseFloat(controls.opticalScatter.value);
+        const halAmt = parseFloat(controls.halation.value);
+
+        const rawE = new Float32Array(size);
+        const scatE = new Float32Array(size);
+        const halSrc = new Float32Array(size);
+        const halMap = new Float32Array(size);
+
+        for (let i = 0; i < size; i++) {
+            const h = Math.max(0, (linearR[i] * spectralE3.r + linearG[i] * spectralE3.g + linearB[i] * spectralE3.b) * expMulE3);
+            rawE[i] = h;
+            halSrc[i] = smoothThreshold(h, fE3.halationThreshold, fE3.halationThreshold + 0.65) * h;
+        }
+
+        const scatRadius = Math.max(0, Math.round(fE3.opticalRadius * scatterAmt * 2));
+        if (scatRadius > 0) {
+            boxBlur2D(rawE, scatE, imgWidth, imgHeight, scatRadius);
+            const scatMix = clamp(0.18 * scatterAmt, 0, 0.45);
+            for (let i = 0; i < size; i++) scatE[i] = rawE[i] * (1 - scatMix) + scatE[i] * scatMix;
+        } else {
+            scatE.set(rawE);
+        }
+
+        const halRadius = Math.max(1, Math.round(fE3.halationRadius * (0.7 + halAmt * 0.9)));
+        boxBlur2D(halSrc, halMap, imgWidth, imgHeight, halRadius);
+        const halStrength = fE3.halationStrength * halAmt;
+        if (halStrength > 0) {
+            for (let i = 0; i < size; i++) scatE[i] += halMap[i] * halStrength;
+        }
+
+        for (let i = 0; i < size; i++) {
+            const idx = i * 4;
+            const byte = linearToByte(clamp(scatE[i], 0, 1));
+            dst[idx] = byte; dst[idx + 1] = byte; dst[idx + 2] = byte;
+            dst[idx + 3] = originalImgData.data[idx + 3];
+        }
+        if (version !== processVersion) return;
+        ctx.putImageData(outputImgData, 0, 0);
+        statusDiv.innerText = `E3 optical bypass · ${controls.filmStock.value.toUpperCase()} · ${Math.round(performance.now() - start)} ms`;
         return;
     }
 
