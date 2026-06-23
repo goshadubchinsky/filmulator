@@ -120,18 +120,27 @@
         .debug-bar {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             background: rgba(255, 204, 102, 0.07);
             border: 1px solid rgba(255, 204, 102, 0.28);
             border-radius: 8px;
             padding: 9px 12px;
             font-size: 12px;
             color: var(--warn);
-            cursor: pointer;
-            user-select: none;
         }
 
-        .debug-bar input[type="checkbox"] { accent-color: var(--warn); cursor: pointer; }
+        .debug-bar label { white-space: nowrap; font-weight: 650; }
+
+        .debug-bar select {
+            flex: 1;
+            background: rgba(255, 204, 102, 0.10);
+            color: var(--warn);
+            border: 1px solid rgba(255, 204, 102, 0.35);
+            border-radius: 6px;
+            padding: 5px 8px;
+            font-size: 12px;
+            cursor: pointer;
+        }
 
         .status {
             text-align: center;
@@ -184,10 +193,14 @@
     <input type="file" id="upload" accept="image/*">
     <canvas id="canvas" width="620" height="390"></canvas>
 
-    <label class="debug-bar">
-        <input type="checkbox" id="e1Bypass">
-        E1 identity bypass — linearise → BT.709 luminance → sRGB only, no film processing
-    </label>
+    <div class="debug-bar">
+        <label for="debugMode">Debug</label>
+        <select id="debugMode">
+            <option value="off">Off — full pipeline</option>
+            <option value="e1">E1: BT.709 identity — linearise only, no film</option>
+            <option value="e2">E2: spectral weights only — no H-D curve or effects</option>
+        </select>
+    </div>
 
     <div class="controls">
         <div class="mini-grid">
@@ -365,7 +378,7 @@ const ctx = canvas.getContext('2d', { willReadFrequently: true });
 const statusDiv = document.getElementById('status');
 const versionBadge = document.getElementById('versionBadge');
 
-const e1BypassCheckbox = document.getElementById('e1Bypass');
+const debugModeSelect = document.getElementById('debugMode');
 
 const controls = {
     filmStock: document.getElementById('filmStock'),
@@ -460,7 +473,7 @@ Object.values(controls).forEach((control) => {
     });
 });
 
-e1BypassCheckbox.addEventListener('change', () => {
+debugModeSelect.addEventListener('change', () => {
     if (originalImgData) scheduleProcess();
 });
 
@@ -519,9 +532,10 @@ function processImage(version) {
     const dst = outputImgData.data;
     const size = imgWidth * imgHeight;
 
-    // E1 [E1]: bypass all film processing — pure sRGB→linear→BT.709 luma→sRGB round-trip.
-    // Use this to confirm Engine 1 linearisation is correct before enabling any other engine.
-    if (e1BypassCheckbox.checked) {
+    const debugMode = debugModeSelect.value;
+
+    // [E1] BT.709 identity bypass: sRGB→linear→BT.709 luma→sRGB, no film processing.
+    if (debugMode === 'e1') {
         for (let i = 0; i < size; i++) {
             const idx = i * 4;
             const luma = 0.2126 * linearR[i] + 0.7152 * linearG[i] + 0.0722 * linearB[i];
@@ -532,6 +546,28 @@ function processImage(version) {
         if (version !== processVersion) return;
         ctx.putImageData(outputImgData, 0, 0);
         statusDiv.innerText = `E1 identity bypass · ${Math.round(performance.now() - start)} ms`;
+        return;
+    }
+
+    // [E2] Spectral weights bypass: applies film panchromatic weights + WB + filter,
+    // encodes directly to sRGB. No H-D curve or effects. Isolates E2 from all downstream.
+    if (debugMode === 'e2') {
+        const filmE2 = FILM_PROFILES[controls.filmStock.value];
+        const filterE2 = FILTERS[controls.colorFilter.value];
+        const wbE2 = filmBalanceMultipliers(parseInt(controls.filmWhiteBalance.value, 10));
+        const evE2 = parseFloat(controls.exposureStops.value) + filterE2.ev;
+        const spectralE2 = effectiveSpectralWeights(filmE2.weights, wbE2, filterE2);
+        const expMulE2 = Math.pow(2, evE2);
+        for (let i = 0; i < size; i++) {
+            const idx = i * 4;
+            const h = clamp((linearR[i] * spectralE2.r + linearG[i] * spectralE2.g + linearB[i] * spectralE2.b) * expMulE2, 0, 1);
+            const byte = linearToByte(h);
+            dst[idx] = byte; dst[idx + 1] = byte; dst[idx + 2] = byte;
+            dst[idx + 3] = originalImgData.data[idx + 3];
+        }
+        if (version !== processVersion) return;
+        ctx.putImageData(outputImgData, 0, 0);
+        statusDiv.innerText = `E2 spectral bypass · ${controls.filmStock.value.toUpperCase()} · ${Math.round(performance.now() - start)} ms`;
         return;
     }
 
