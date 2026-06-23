@@ -64,6 +64,22 @@ biggest realness gain here.
 
 ## Progression Log
 
+### 2026-06-23 — Visual confirmation passed
+Added E3 optical transport bypass mode. Confirmed via GitHub Pages:
+- Scatter: fine detail softens progressively as slider raises — correct
+- Halation: discovered two-layer invisibility issue in direct linear encoding:
+  (1) halationThreshold=0.74 linear (sRGB≈222) means only very bright highlights
+  produce a source; (2) halationStrength 0.030–0.040 is calibrated for the H-D
+  curve's shoulder compression — raw addition is sub-pixel without it.
+  Added ×20 display boost and max-halSrc diagnostic to status bar in E3 mode.
+  With boost, halation glow confirmed correct: appears only around bright
+  highlights, scales with slider, spreads wider on HP5 (radius 18) vs FP4 (14).
+  The ×20 multiplier exists only in the E3 bypass; Pass 2 in processImage is
+  unchanged. Halation is working correctly — it just requires the H-D curve to
+  be perceptible at its physically calibrated strength.
+No physics code changes. Rating unchanged at 5/10 — box-blur PSF remains the
+primary gap; a physically shaped (exponential/Frieser) kernel would raise it.
+
 ### 2026-06-23 — Baseline assessment
 Documented scatter + halation. Confirmed both are real effects modeled in the
 correct (pre-development, linear-exposure) domain. Identified the box-blur PSF
