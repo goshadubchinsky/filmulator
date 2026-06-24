@@ -79,19 +79,19 @@ Images are capped to 1100 px on the longest edge on load. `buildLinearSourceBuff
 |------|-------------|
 | 1 | Scene-linear RGB → panchromatic film exposure via `effectiveSpectralWeights()` (folds white balance + optical filter into channel mixing weights, then normalizes) |
 | 2 | Optical transport: emulsion scatter (`gaussianBlur2D`) and monochrome halation (`exponentialBlur2D` of highlight-only source, added back to exposure) |
-| 3–4 | Iterative reaction-diffusion development (6 steps): per-step developer consumption + lateral `boxBlur2D` diffusion; adjacency effects (Mackie lines) emerge from chemistry; then `hdDensity()` maps final developer concentration to density |
+| 3–4 | Iterative reaction-diffusion development (6 steps): per-step developer consumption + lateral `gaussianBlur2D` diffusion; adjacency effects (Mackie lines) emerge from chemistry; then `hdDensity()` maps final developer concentration to density; gamma derived from devTimeRatio via first-order kinetics |
 | 5 | *(retired — E5 synthetic high-pass deleted; edge effects emerge from Pass 3–4)* |
 | 6 | Grain (spatially correlated hash noise → box blur → density-weighted amplitude), then `printDensityToPositive()` for final positive tones → sRGB output bytes |
 
 ### Key functions
 
-- **`hdDensity(exposure, developer, film, pushPull)`** — implements the Hurter-Driffield density curve. Push shifts toe and compresses the shoulder; pull does the reverse.
+- **`hdDensity(exposure, developer, film, devTimeRatio)`** — implements the Hurter-Driffield density curve. Gamma is derived from `devTimeRatio = effectiveDevTime / film.nominalDevTime` via `G = 2·film.gamma·(1−2^(−devTimeRatio))` (first-order reaction kinetics, G_∞ = 2·G_nom).
 - **`boxBlur2D(src, dst, w, h, radius)`** — separable (horizontal then vertical) sliding-window box blur on `Float32Array` with clamped edges. Used for E4 iterative diffusion and E6 grain.
 - **`gaussianBlur2D(src, dst, w, h, radius)`** — three-pass box-blur approximation of a Gaussian (σ ≈ radius); used for E3 scatter.
 - **`exponentialBlur2D(src, dst, w, h, sigma)`** — separable causal+anticausal first-order IIR implementing Frieser exponential LSF e^(−|x|/σ); used for E3 halation.
 - **`effectiveSpectralWeights(base, wb, filter)`** — multiplies base film weights by white-balance multipliers and filter multipliers, then normalizes so the total channel weight sums to 1.
 - **`filmBalanceMultipliers(filmKelvin)`** — converts a color temperature (Kelvin) to per-channel multipliers relative to the 5500 K reference white via `kelvinToSrgbWhite()` (Tanner Helland approximation).
-- **`printDensityToPositive(dNorm, contrast)`** — maps normalized negative density to positive print tones using a `tanh`-based S-curve contrast operator followed by a `smoothstep` display toe/shoulder.
+- **`printDensityToPositive(dNorm, paperGamma)`** — maps normalized negative density through a paper H-D curve (Ilford RC Glossy reference: Dmin=0.06, Dmax=2.00, knee at 55% of density range) to a normalized reflectance [0,1].
 - **`hashNoise(i)`** — integer hash function for grain; produces a deterministic value in `[-0.5, 0.5]`.
 - **`scheduleProcess()`** — debounces reprocessing by 45 ms on every control change. Uses a version counter to discard stale renders.
 
