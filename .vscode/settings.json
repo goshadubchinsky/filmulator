@@ -1,0 +1,9 @@
+{
+    "terminal.integrated.fontFamily": "'JetBrains Mono', monospace",
+    "terminal.integrated.fontSize": 14,
+    "terminal.integrated.fontWeight": "normal",
+    "python-envs.defaultEnvManager": "ms-python.python:system",
+    "python.defaultInterpreterPath": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+    "powershell.integratedConsole.showOnStartup": true,
+    "python.terminal.activateEnvironment": true
+}

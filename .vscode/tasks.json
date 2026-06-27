@@ -1,0 +1,66 @@
+{
+    "version": "2.0.0",
+    "presentation": {
+        "echo": false,
+        "reveal": "always",
+        "focus": false,
+        "panel": "new",
+        "showReuseMessage": false
+    },
+    "tasks": [
+        {
+            "label": "1. claude (native)",
+            "type": "shell",
+            "command": "pwsh",
+            "args": ["-NoExit", "-Command", ". .\\powershell-profile.ps1; use-claude; claude"],
+            "presentation": { "panel": "new" },
+            "group": "none"
+        },
+        {
+            "label": "2. claude (deepseek)",
+            "type": "shell",
+            "command": "pwsh",
+            "args": ["-NoExit", "-Command", ". .\\powershell-profile.ps1; use-deepseek; claude"],
+            "presentation": { "panel": "new" },
+            "group": "none"
+        },
+        {
+            "label": "3. antigravity",
+            "type": "shell",
+            "command": "pwsh",
+            "args": ["-NoExit", "-Command", ". .\\powershell-profile.ps1; Write-Host 'Antigravity CLI ready.' -ForegroundColor Blue; agy"],
+            "presentation": { "panel": "new" },
+            "group": "none"
+        },
+        {
+            "label": "4. codex",
+            "type": "shell",
+            "command": "pwsh",
+            "args": ["-NoExit", "-Command", ". .\\powershell-profile.ps1; use-codex; codex"],
+            "presentation": { "panel": "new" },
+            "group": "none"
+        },
+        {
+            "label": "5. Main Terminal",
+            "type": "shell",
+            "command": "pwsh",
+            "args": ["-NoExit", "-Command", ". .\\powershell-profile.ps1; Write-Host 'Main terminal ready.' -ForegroundColor Green"],
+            "presentation": { "panel": "new" },
+            "group": "none"
+        },
+        {
+            "label": "Start All Terminals",
+            "dependsOn": [
+                "1. claude (native)",
+                "2. claude (deepseek)",
+                "3. antigravity",
+                "4. codex",
+                "5. Main Terminal"
+            ],
+            "dependsOrder": "parallel",
+            "runOptions": {
+                "runOn": "folderOpen"
+            }
+        }
+    ]
+}
