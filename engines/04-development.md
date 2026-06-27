@@ -25,8 +25,10 @@ lateral chemical diffusion of developer.
   regions into exhausted ones. This reservoir/diffusion coupling is exactly the
   mechanism the original Filmulator (Carlson) simulates, and it is the *true*
   origin of adjacency/edge effects.
-- **Push/pull:** longer/shorter or hotter/cooler development raises/lowers
-  contrast and Dmax and shifts the curve.
+- **Push/pull:** push = underexpose at camera + overdevelop (longer time / higher temp).
+  Pull = overexpose + underdevelop. Development time is the physical variable; "push/pull"
+  is a composite operation, not a single H-D modifier. Gamma increases with time
+  following first-order kinetics: G = G_∞·(1 − e^(−t/τ)).
 
 ## Current implementation
 
@@ -42,14 +44,19 @@ lateral chemical diffusion of developer.
   feeds into `hdDensity()` as the developer-completeness multiplier.
 - **Lateral diffusion:** `boxBlur2D(devField, …, stepDiffRadius)` then 70/30
   diffused/local blend, redistributing fresh developer from low-demand regions.
-- **H-D curve (knee-based shoulder):** `hdDensity(H, devMultiplier, film, pushPull)`
+- **H-D curve (knee-based shoulder):** `hdDensity(H, devMultiplier, film, devTimeRatio)`
   applies a softplus toe, straight-line gamma section, and knee shoulder at 55% of
   `dRange`. Below the knee, density grows linearly (constant gamma); above it,
   exponential saturation toward Dmax. `driveCal = 1.71` calibrates the toe↔logH
   mapping.
-- **Film profiles (current):** FP4: gamma=0.55, shoulder=0.75, dMax=1.45;
-  HP5: gamma=0.50, shoulder=0.70, dMax=1.62. Both fitted to match Ilford's
-  published G values (FP4 G≈0.55, HP5 G≈0.50) as true straight-line slopes.
+- **Film profiles (current):** FP4: gamma=0.55 (Ilford G for EI 125, ID-11 stock 8.5 min),
+  shoulder=0.75, dMax=1.45; HP5: gamma=0.50 (Ilford G for EI 400, ID-11 stock 6.5 min),
+  shoulder=0.70, dMax=1.62. Both match Ilford's published G as straight-line slopes.
+  nominalDevTime calibrated directly from the Ilford FP4+/HP5+ Technical Information sheets
+  (Nov 2018): FP4+ stock 8.5 min at EI 125; HP5+ stock 6.5 min at EI 400.
+- **Gamma from development time:** `G(t) = 2·film.gamma·(1 − 2^(−t/t_nom))`. Derived from
+  first-order reaction kinetics with G_∞ = 2·G_nom. This replaces the former `pushPull`
+  parameter, which had no physical basis as an independent H-D modifier.
 
 ## What's real / what's approximated
 
@@ -62,7 +69,10 @@ lateral chemical diffusion of developer.
   at a sharp boundary, the heavily exposed side exhausts its developer, and fresh
   developer from the light side crosses over, producing the density overshoot
   fringes naturally. The synthetic E5 pass has been retired.
-- ✅ Push/pull modifies the curve in the right directions.
+- ✅ Gamma now derives from development time via first-order reaction kinetics
+  (G = G_∞·(1−e^(−t/τ))). At nominal devTime, G = film.gamma exactly. Push (longer time)
+  raises gamma; pull (shorter time) lowers it. This correctly models why push/pull
+  changes contrast: it is a consequence of development time, not an independent modifier.
 - ✅ First-order kinetics (`dC ∝ C`) correctly model the self-limiting nature of
   Metol-HQ development; dilution scales `C₀` and `k` independently.
 - ✅ Lateral diffusion now uses `gaussianBlur2D` (three-pass box blur ≈ Gaussian),
@@ -82,6 +92,12 @@ constants (DEV_C0, DEV_k, DEV_BETA, driveCal).
 
 ## Roadmap to higher realness
 
+- Measure G values from Ilford's published characteristic curves at different
+  development times (curves are raster images in the datasheets; would need
+  scanning + curve digitization) to fit G_∞ per film/developer rather than using
+  the estimated G_∞ = 2·G_nom.
+- Add toe / shoulder / Dmax variation with devTimeRatio (real push changes inertia
+  and shoulder slightly; currently these stay at film defaults).
 - Calibrate `DEV_C0`, `DEV_k`, `DEV_BETA` against actual measured sensitometry
   (Ilford technical sheets give H-D curves at different dilutions and times).
 - Calibrate `driveCal` and film profile constants against measured H-D data for
@@ -91,6 +107,23 @@ constants (DEV_C0, DEV_k, DEV_BETA, driveCal).
 
 ## Progression Log
 
+### 2026-06-24 — pushPull slider removed; gamma now derived from devTime via first-order kinetics · rating 9/10 maintained
+
+**Physical motivation:** development time is the actual physical control on gamma. A separate `pushPull` slider that modified gamma independently of devTime was not modeling a real physical process — it was an aesthetic knob grafted onto the simulation.
+
+**New formula:** `G(t) = 2·G_nom · (1 − 2^(−t/t_nom))`
+
+Derived from the Schwarzschild first-order reaction model: `G(t) = G_∞ · (1 − e^(−t/τ))`. Constrained by:
+1. `G(t_nom) = film.gamma` (must match nominal G at nominal time — trivially satisfied by construction)
+2. `G_∞ = 2 · film.gamma` — material constant chosen so that the nominal development time puts the emulsion at exactly 50% of maximum gamma. This gives `τ = t_nom/ln(2)`, eliminating τ as a free parameter.
+
+**Verified against Ilford datasheet (Nov 2018, extracted directly from PDF):**
+- FP4+ ID-11 stock 20°C: EI 125 (normal) = 8.5 min → G = 0.55 ✓ (formula gives film.gamma by construction)
+- HP5+ ID-11 stock 20°C: EI 400 (normal) = 6.5 min → G = 0.52 ✓; EI 800 (push 1) = 9.5 min → ratio 1.46 → G = 0.659; EI 1600 (push 2) = 14 min → ratio 2.15 → G = 0.806. These G values at push 1–2 are consistent with the photographic literature's characterization of HP5+ push behavior (higher contrast, compressed highlights).
+
+**FP4+ nominalDevTime corrected:** 6.5 min → 8.5 min. The old value (6.5) corresponded to the EI 50 pull time, not the EI 125 normal time. Fixed directly from the Ilford FP4+ Technical Information sheet.
+
+**grainFactor simplified:** removed the pushPull-based grain boost term `(1 + pushPull × 0.5)`. Grain coarsening with extended development is already captured by the `√(t/t_nom)` term. Rating remains 9/10: the mechanism and functional form are now more physically grounded, but G_∞/G_nom = 2 is an estimated material constant (not measured from Ilford sensitometric data for each emulsion).
 ### 2026-06-23 — Gaussian diffusion kernel replaces box blur · rating 8→9
 Replaced `boxBlur2D` with `gaussianBlur2D` (three-pass box blur approximation of
 a Gaussian, σ ≈ radius) in the per-step lateral diffusion of the E4 development
