@@ -30,6 +30,24 @@ python3 -m http.server 8080
 
 There are no tests, no linter, and no CI configuration.
 
+### Platform & Deployment Constraints
+
+The app is deployed via **GitHub Pages** and used on **iOS as a home-screen web app**
+("Add to Home Screen" → standalone PWA mode). Every feature and dependency must be
+compatible with iOS Safari in this configuration. Key implications:
+
+- **No large WASM** — iOS Safari caps WebAssembly module size aggressively; typical
+  raw-codec WASM bundles (e.g. LibRaw) may not load.
+- **No server backend** — everything runs client-side; no server-side conversion or
+  API calls.
+- **Single-file** — the entire app lives in `index.html` (no separate JS bundles
+  fetched at runtime, no CDN imports that could fail offline).
+- **iOS Safari quirks** — limited `<input type="file">` capabilities, no
+  `OffscreenCanvas`, memory pressure on large canvases, and the iOS JIT ban in
+  home-screen web apps (WKWebView runs without JIT, so hot loops are much slower).
+- **Touch-first UI** — all controls must be usable with touch (adequate hit
+  targets, no hover-dependent interactions).
+
 ## Architecture
 
 The app is structured as three sections within `index.html`:
@@ -42,7 +60,7 @@ The app is structured as three sections within `index.html`:
 
 Two top-level constant tables drive the simulation:
 
-- **`FILM_PROFILES`** (`fp4`, `hp5`) — per-stock physical parameters: panchromatic spectral weights, H-D curve shape (`gamma`, `inertia`, `toe`, `shoulder`, `dMin`, `dMax`), optical scatter radius, halation radius/threshold/strength, Eberhard coefficient, and grain parameters.
+- **`FILM_PROFILES`** (`fp4`, `hp5`) — per-stock physical parameters: panchromatic spectral weights, H-D curve shape (`gamma`, `inertia`, `toe`, `shoulder`, `dMin`, `dMax`), optical scatter radius, halation radius/threshold/strength, and grain parameters.
 - **`FILTERS`** — six optical filter presets, each carrying per-channel multipliers and an EV correction.
 
 ### Engines
@@ -55,12 +73,12 @@ good it looks — and a **progression log**.
 | # | Engine | Realness | Passes |
 |---|--------|:--------:|--------|
 | 1 | Input / Scene-Linear | 4/10 | pre-Pass 1 |
-| 2 | Spectral Sensitivity | 5/10 | Pass 1 |
-| 3 | Optical Transport | 5/10 | Pass 2 |
-| 4 | Development | 7/10 | Passes 3–4 |
-| 5 | Adjacency / Edge Effects | 3/10 | Pass 5 |
-| 6 | Grain | 3/10 | Pass 6 |
-| 7 | Print / Positive | 4/10 | Pass 6 |
+| 2 | Spectral Sensitivity | 7/10 | Pass 1 |
+| 3 | Optical Transport | 7/10 | Pass 2 |
+| 4 | Development | 9/10 | Passes 3–4 (iterative Rxn-Diff, Gaussian diffusion) |
+| 5 | Adjacency / Edge Effects | **RETIRED** | emerges from E4 |
+| 6 | Grain | 6/10 | Pass 6 (density domain, Selwyn-Nutting) |
+| 7 | Print / Positive | 8/10 | Pass 6 (paper H-D curve) |
 
 **Required workflow:** whenever you change code belonging to an engine, append a
 dated entry to that engine's progression log in `engines/`, and update its
@@ -78,19 +96,20 @@ Images are capped to 1100 px on the longest edge on load. `buildLinearSourceBuff
 | Pass | What it does |
 |------|-------------|
 | 1 | Scene-linear RGB → panchromatic film exposure via `effectiveSpectralWeights()` (folds white balance + optical filter into channel mixing weights, then normalizes) |
-| 2 | Optical transport: emulsion scatter (box blur + partial mix) and monochrome halation (box blur of highlight-only source, added back to exposure) |
-| 3 | Local developer exhaustion (per-pixel) + lateral chemical diffusion (box blur of developer field) |
-| 4 | H-D characteristic curve via `hdDensity()` — softplus toe, exponential shoulder saturation, push/pull-modified parameters |
-| 5 | Eberhard/Mackie edge effect — adaptive high-pass in density domain using box blur |
+| 2 | Optical transport: emulsion scatter (`gaussianBlur2D`) and monochrome halation (`exponentialBlur2D` of highlight-only source, added back to exposure) |
+| 3–4 | Iterative reaction-diffusion development (6 steps): per-step developer consumption + lateral `gaussianBlur2D` diffusion; adjacency effects (Mackie lines) emerge from chemistry; then `hdDensity()` maps final developer concentration to density; gamma derived from devTimeRatio via first-order kinetics |
+| 5 | *(retired — E5 synthetic high-pass deleted; edge effects emerge from Pass 3–4)* |
 | 6 | Grain (spatially correlated hash noise → box blur → density-weighted amplitude), then `printDensityToPositive()` for final positive tones → sRGB output bytes |
 
 ### Key functions
 
-- **`hdDensity(exposure, developer, film, pushPull)`** — implements the Hurter-Driffield density curve. Push shifts toe and compresses the shoulder; pull does the reverse.
-- **`boxBlur2D(src, dst, w, h, radius)`** — separable (horizontal then vertical) sliding-window box blur on `Float32Array` with clamped edges. Used for scatter, halation, diffusion, edge detection, and grain.
+- **`hdDensity(exposure, developer, film, devTimeRatio)`** — implements the Hurter-Driffield density curve. Gamma is derived from `devTimeRatio = effectiveDevTime / film.nominalDevTime` via `G = 2·film.gamma·(1−2^(−devTimeRatio))` (first-order reaction kinetics, G_∞ = 2·G_nom).
+- **`boxBlur2D(src, dst, w, h, radius)`** — separable (horizontal then vertical) sliding-window box blur on `Float32Array` with clamped edges. Used for E4 iterative diffusion and E6 grain.
+- **`gaussianBlur2D(src, dst, w, h, radius)`** — three-pass box-blur approximation of a Gaussian (σ ≈ radius); used for E3 scatter.
+- **`exponentialBlur2D(src, dst, w, h, sigma)`** — separable causal+anticausal first-order IIR implementing Frieser exponential LSF e^(−|x|/σ); used for E3 halation.
 - **`effectiveSpectralWeights(base, wb, filter)`** — multiplies base film weights by white-balance multipliers and filter multipliers, then normalizes so the total channel weight sums to 1.
 - **`filmBalanceMultipliers(filmKelvin)`** — converts a color temperature (Kelvin) to per-channel multipliers relative to the 5500 K reference white via `kelvinToSrgbWhite()` (Tanner Helland approximation).
-- **`printDensityToPositive(dNorm, contrast)`** — maps normalized negative density to positive print tones using a `tanh`-based S-curve contrast operator followed by a `smoothstep` display toe/shoulder.
+- **`printDensityToPositive(dNorm, paperGamma)`** — maps normalized negative density through a paper H-D curve (Ilford RC Glossy reference: Dmin=0.06, Dmax=2.00, knee at 55% of density range) to a normalized reflectance [0,1].
 - **`hashNoise(i)`** — integer hash function for grain; produces a deterministic value in `[-0.5, 0.5]`.
 - **`scheduleProcess()`** — debounces reprocessing by 45 ms on every control change. Uses a version counter to discard stale renders.
 

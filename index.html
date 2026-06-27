@@ -52,6 +52,19 @@
             gap: 14px;
         }
 
+        .main {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .canvas-area {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            min-width: 0;
+        }
+
         .header {
             display: flex;
             flex-direction: column;
@@ -117,6 +130,31 @@
 
         input[type="file"] { cursor: pointer; }
 
+        .debug-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255, 204, 102, 0.07);
+            border: 1px solid rgba(255, 204, 102, 0.28);
+            border-radius: 8px;
+            padding: 9px 12px;
+            font-size: 12px;
+            color: var(--warn);
+        }
+
+        .debug-bar label { white-space: nowrap; font-weight: 650; }
+
+        .debug-bar select {
+            flex: 1;
+            background: rgba(255, 204, 102, 0.10);
+            color: var(--warn);
+            border: 1px solid rgba(255, 204, 102, 0.35);
+            border-radius: 6px;
+            padding: 5px 8px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
         .status {
             text-align: center;
             font-size: 12px;
@@ -150,9 +188,71 @@
             gap: 12px;
         }
 
+        .section-label {
+            font-size: 10px;
+            font-weight: 750;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--muted);
+            border-top: 1px solid var(--border);
+            padding-top: 10px;
+            margin-top: 2px;
+        }
+
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 10px;
+            font-weight: 750;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--muted);
+            border-top: 1px solid var(--border);
+            padding-top: 10px;
+            margin-top: 2px;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        details > summary::-webkit-details-marker { display: none; }
+        details > summary::marker { display: none; }
+        details > summary::after { content: '▸'; font-size: 10px; }
+        details[open] > summary::after { content: '▾'; }
+
+        .adv-inner {
+            display: flex;
+            flex-direction: column;
+            gap: 13px;
+            padding-top: 13px;
+        }
+
         @media (max-width: 520px) {
             .mini-grid { grid-template-columns: 1fr; }
             body { padding: 12px; }
+        }
+
+        @media (min-width: 900px) {
+            .container {
+                max-width: 1100px;
+            }
+
+            .main {
+                flex-direction: row;
+                align-items: flex-start;
+            }
+
+            .canvas-area {
+                flex: 1 1 0;
+                min-width: 0;
+            }
+
+            .controls {
+                flex: 0 0 340px;
+                max-height: calc(100vh - 32px);
+                overflow-y: auto;
+            }
         }
     </style>
 </head>
@@ -161,14 +261,29 @@
 <div class="container">
     <div class="header">
         <h2>JS Filmulator POC</h2>
-        <p>Linear-light black-and-white negative simulation with film profiles, spectral mixing, H-D density curve, halation, Eberhard edge effect, and density-linked grain.</p>
+        <p>Linear-light black-and-white negative simulation with film profiles, spectral mixing, H-D density curve, halation, iterative reaction-diffusion development, and density-linked grain.</p>
         <div class="version-badge" id="versionBadge">version loading</div>
     </div>
 
     <input type="file" id="upload" accept="image/*">
-    <canvas id="canvas" width="620" height="390"></canvas>
 
-    <div class="controls">
+    <div class="main">
+        <div class="canvas-area">
+            <canvas id="canvas" width="620" height="390"></canvas>
+
+            <div class="debug-bar">
+                <label for="debugMode">Debug</label>
+                <select id="debugMode">
+                    <option value="off">Off — full pipeline</option>
+                    <option value="e1">E1: BT.709 identity — linearise only, no film</option>
+                    <option value="e2">E2: spectral weights only — no H-D curve or effects</option>
+                    <option value="e3">E3: + scatter &amp; halation — no H-D curve or effects</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="controls">
+        <!-- Basic controls — always visible -->
         <div class="mini-grid">
             <div class="control-group">
                 <div class="row">
@@ -188,94 +303,78 @@
                 </div>
                 <select id="colorFilter">
                     <option value="none">None</option>
-                    <option value="yellow">Yellow filter</option>
-                    <option value="orange">Orange filter</option>
-                    <option value="red">Red filter</option>
-                    <option value="green">Green filter</option>
-                    <option value="blue">Blue filter</option>
+                    <option value="yellow">Yellow</option>
+                    <option value="orange">Orange</option>
+                    <option value="red">Red</option>
+                    <option value="green">Green</option>
+                    <option value="blue">Blue</option>
                 </select>
             </div>
         </div>
 
         <div class="control-group">
             <div class="row">
-                <label for="filmWhiteBalance">Film / Illuminant Balance</label>
-                <span class="value" id="filmWhiteBalanceValue">5500 K Â· daylight neutral</span>
-            </div>
-            <input type="range" id="filmWhiteBalance" min="2500" max="10000" step="100" value="5500">
-        </div>
-
-        <div class="control-group">
-            <div class="row">
-                <label for="exposureStops">Camera Exposure</label>
-                <span class="value" id="exposureStopsValue">+0.0 EV</span>
+                <label for="exposureStops">Camera EV</label>
+                <span class="value" id="exposureStopsValue">0 EV</span>
             </div>
             <input type="range" id="exposureStops" min="-3.0" max="3.0" step="0.1" value="0.0">
         </div>
 
         <div class="control-group">
             <div class="row">
-                <label for="pushPull">Development Push / Pull</label>
-                <span class="value" id="pushPullValue">normal</span>
+                <label for="devTime">Development Time</label>
+                <span class="value" id="devTimeValue">11.0 min · Normal</span>
             </div>
-            <input type="range" id="pushPull" min="-1.0" max="2.0" step="0.1" value="0.0">
+            <input type="range" id="devTime" min="2.0" max="60.0" step="0.5" value="11.0">
         </div>
 
         <div class="control-group">
             <div class="row">
-                <label for="opticalScatter">Emulsion Scatter / MTF Loss</label>
-                <span class="value" id="opticalScatterValue">1.00</span>
+                <label for="paperGrade">Paper Grade</label>
+                <span class="value" id="paperGradeValue">Grade 2 — Normal</span>
             </div>
-            <input type="range" id="opticalScatter" min="0.00" max="2.00" step="0.05" value="1.00">
+            <input type="range" id="paperGrade" min="0" max="5" step="0.5" value="2">
         </div>
 
-        <div class="control-group">
-            <div class="row">
-                <label for="halation">B&W Halation / Base Fog</label>
-                <span class="value" id="halationValue">0.55</span>
-            </div>
-            <input type="range" id="halation" min="0.00" max="2.00" step="0.05" value="0.55">
-        </div>
+        <!-- Advanced controls — collapsible -->
+        <details>
+            <summary>Advanced</summary>
+            <div class="adv-inner">
+                <div class="control-group">
+                    <div class="row">
+                        <label for="filmWhiteBalance">Illuminant / White Balance</label>
+                        <span class="value" id="filmWhiteBalanceValue">5500 K · daylight neutral</span>
+                    </div>
+                    <input type="range" id="filmWhiteBalance" min="2500" max="10000" step="100" value="5500">
+                </div>
 
-        <div class="control-group">
-            <div class="row">
-                <label for="exhaustion">Developer Exhaustion</label>
-                <span class="value" id="exhaustionValue">1.20</span>
-            </div>
-            <input type="range" id="exhaustion" min="0.00" max="3.00" step="0.05" value="1.20">
-        </div>
+                <div class="control-group">
+                    <div class="row">
+                        <label for="dilution">Developer Dilution</label>
+                        <span class="value" id="dilutionValue">1+1</span>
+                    </div>
+                    <select id="dilution">
+                        <option value="stock">Stock (1+0) — fine grain, minimal adjacency</option>
+                        <option value="1+1" selected>1+1 — balanced grain &amp; sharpness</option>
+                        <option value="1+3">1+3 — sharper, visible adjacency</option>
+                        <option value="1+9">1+9 — high acutance, strong adjacency</option>
+                        <option value="1+25">1+25 — very high acutance</option>
+                        <option value="1+50">1+50 — extreme acutance / Rodinal-style</option>
+                        <option value="stand">Stand 1+100 — maximum local exhaustion</option>
+                    </select>
+                </div>
 
-        <div class="control-group">
-            <div class="row">
-                <label for="diffusionRadius">Chemical Diffusion Radius</label>
-                <span class="value" id="diffusionRadiusValue">9 px</span>
+                <div class="control-group">
+                    <div class="row">
+                        <label for="devTemp">Developer Temperature</label>
+                        <span class="value" id="devTempValue">20.0 °C</span>
+                    </div>
+                    <input type="range" id="devTemp" min="18.0" max="24.0" step="0.5" value="20.0">
+                </div>
             </div>
-            <input type="range" id="diffusionRadius" min="0" max="36" step="1" value="9">
-        </div>
-
-        <div class="control-group">
-            <div class="row">
-                <label for="eberhard">Eberhard / Mackie Edge Effect</label>
-                <span class="value" id="eberhardValue">0.85</span>
-            </div>
-            <input type="range" id="eberhard" min="0.00" max="2.00" step="0.05" value="0.85">
-        </div>
-
-        <div class="control-group">
-            <div class="row">
-                <label for="grain">Cubic Grain</label>
-                <span class="value" id="grainValue">1.00</span>
-            </div>
-            <input type="range" id="grain" min="0.00" max="2.50" step="0.05" value="1.00">
-        </div>
-
-        <div class="control-group">
-            <div class="row">
-                <label for="printContrast">Positive Print Contrast</label>
-                <span class="value" id="printContrastValue">1.10</span>
-            </div>
-            <input type="range" id="printContrast" min="0.60" max="1.90" step="0.05" value="1.10">
-        </div>
+        </details>
+    </div>
+    </div>
     </div>
 
     <div class="status" id="status">Load an image to begin.</div>
@@ -283,48 +382,75 @@
 </div>
 
 <script>
-const APP_VERSION = 'v0.4.0-bw-hd-filmstocks';
+const APP_VERSION = 'v0.5.0-parametric-devtime';
 const REFERENCE_WHITE_KELVIN = 5500;
 
 /* ENGINE MAP → engines/README.md
    E1 input/scene-linear   E2 spectral-sensitivity   E3 optical-transport
-   E4 development          E5 adjacency-edge          E6 grain   E7 print-positive */
+   E4 development (iterative Rxn-Diff; adjacency emerges — E5 retired)
+   E6 grain   E7 print-positive */
 
 // E2–E6: per-stock sensitometric + physical parameters; see engines/README.md to add stocks
 const FILM_PROFILES = {
     fp4: {
         label: 'FP4 Plus',
         weights: { r: 0.28, g: 0.41, b: 0.31 },
-        gamma: 0.68,
+        gamma: 0.55,       // Ilford G for ID-11 at 20 °C — straight-line γ
         inertia: -1.18,
         toe: 0.42,
-        shoulder: 1.18,
+        shoulder: 0.75,    // compression above knee (lower = more compression)
         dMin: 0.08,
         dMax: 1.45,
         opticalRadius: 0.75,
         halationRadius: 14,
         halationThreshold: 0.74,
         halationStrength: 0.030,
-        eberhard: 1.05,
+        nominalDevTime: 8.5,  // minutes, ID-11 stock at 20 °C, EI 125 (Ilford datasheet Nov 2018)
+        diffusionBase: 10,    // lateral diffusion radius (px) at nominal time
         grain: 0.018,
         grainRadius: 1
     },
     hp5: {
         label: 'HP5 Plus',
-        weights: { r: 0.23, g: 0.37, b: 0.40 },
-        gamma: 0.56,
+        weights: { r: 0.33, g: 0.39, b: 0.28 }, // extended-red panchromatic; HP5+ has noticeably more red response than FP4+ (Ilford datasheet)
+        gamma: 0.50,       // target Ilford G for ID-11 at 20 °C
         inertia: -1.34,
-        toe: 0.56,
-        shoulder: 1.55,
+        toe: 0.56,         // reset to original
+        shoulder: 0.70,    // compression above knee (~0.684 headroom above 55% knee)
         dMin: 0.10,
         dMax: 1.62,
         opticalRadius: 1.10,
         halationRadius: 18,
         halationThreshold: 0.70,
         halationStrength: 0.040,
-        eberhard: 0.75,
+        nominalDevTime: 6.5,  // minutes, ID-11 stock at 20 °C, EI 400 (Ilford datasheet Nov 2018)
+        diffusionBase: 14,    // coarser emulsion, wider diffusion at nominal time
         grain: 0.032,
         grainRadius: 2
+    }
+};
+
+// [E4] Nominal development times from Ilford ID-11 datasheet (Nov 2018, 20 °C).
+// Stock/1+1/1+3 are from published data; higher dilutions extrapolated.
+// Used to anchor the G(t) kinetics formula per dilution: ratio=1.0 always → film.gamma.
+const NOMINAL_DEV_TIMES = {
+    fp4: {
+        stock:  8.5,   // EI 125, Ilford FP4+ datasheet Nov 2018
+        '1+1':  11.0,  // EI 125
+        '1+3':  15.0,  // EI 125
+        '1+9':  22.0,  // extrapolated
+        '1+25': 34.0,  // extrapolated
+        '1+50': 45.0,  // extrapolated
+        stand:  60.0   // extrapolated
+    },
+    hp5: {
+        stock:  6.5,   // EI 400, Ilford HP5+ datasheet Nov 2018
+        '1+1':  9.5,   // EI 400
+        '1+3':  13.0,  // EI 400
+        '1+9':  20.0,  // extrapolated
+        '1+25': 30.0,  // extrapolated
+        '1+50': 40.0,  // extrapolated
+        stand:  60.0   // extrapolated
     }
 };
 
@@ -338,25 +464,90 @@ const FILTERS = {
     blue:   { label: 'blue',   r: 0.22, g: 0.55, b: 1.25, ev: -1.05 }
 };
 
+const GRADE_NAMES = { 0: 'Extra Soft', 1: 'Soft', 2: 'Normal', 3: 'Hard', 4: 'Very Hard', 5: 'Ultra Hard' };
+
+// [E7] Paper gamma by grade — real multigrade paper H-D curve steepness.
+// Grade 0 (soft) suppresses contrast; grade 5 (ultra hard) amplifies it sharply.
+// Values derived from Ilford Multigrade RC Deluxe technical data (relative γ per grade).
+const PAPER_GAMMA = [0.80, 1.10, 1.45, 2.00, 2.65, 3.30]; // grades 0–5
+
+// [E4] Physics-based dilution parameters — engines/04-development.md
+//
+// Qualitatively calibrated to Ilford FP4+ D-76/ID-11 data: stock 6.5 min, 1+1 11 min,
+// 1+3 15 min all reach similar contrast G≈0.55. Dilution changes development RATE,
+// not final capacity; with appropriate time compensation, all dilutions achieve
+// similar Dmax.
+//
+// Model: first-order reaction kinetics (rate ∝ [developer]) coupled to Fickian
+// lateral diffusion in swollen gelatin. Superadditivity buffers effective activity:
+// activity ∝ (1/(1+parts))^0.42. Constants are fitted to qualitative behavior,
+// not derived from measured diffusion coefficients.
+//
+// C0 = effective initial developer activity (relative to stock concentrate).
+// Per-step consumption: dC/dt = -k(E) × C  (first-order in [dev]).
+// Higher dilution → faster relative local depletion → steeper C gradients
+// → stronger Mackie-line edge effects emerging from the reaction-diffusion PDE.
+const DEV_C0 = {
+    stock:  1.00,   // reference — 6.5 min → G=0.55
+    '1+1':  0.75,   // 11 min  → G=0.55
+    '1+3':  0.55,   // 15 min  → G=0.55
+    '1+9':  0.36,   // ~23 min → G=0.55 (extrapolated)
+    '1+25': 0.22,   // ~39 min → G=0.55
+    '1+50': 0.17,   // ~50 min → G=0.55
+    stand:  0.13    // ~65 min → G=0.55 (stand/compensating)
+};
+
+// Consumption rate constant k (first-order, dimensionless).
+//
+// k×C0 must INCREASE with dilution — this is the physical origin of the
+// compensating effect. At higher dilution, each unit of silver formed
+// consumes a larger fraction of the (sparser) local developer supply,
+// creating steeper spatial gradients that drive Mackie-line edge effects.
+//
+// The old values had k×C0 decreasing (0.20→0.10), making stock MORE
+// spatially varied than stand — physically backwards.
+const DEV_k = {
+    stock:  0.20,    // k×C0 = 0.200 — mild exhaustion
+    '1+1':  0.32,    // 0.240
+    '1+3':  0.55,    // 0.303
+    '1+9':  1.05,    // 0.378
+    '1+25': 1.80,    // 0.396
+    '1+50': 2.40,    // 0.408
+    stand:  3.20     // 0.416 — 2× stock exhaustion
+};
+
+// Diffusion coupling β = fraction from neighbour (reservoir) per step.
+// Higher dilution → fewer developer molecules per unit volume → less
+// absolute diffusive flux (Fick's law: J = D·∇C, but ∇C is bounded by C0).
+// Weaker coupling preserves the steeper spatial gradients characteristic
+// of Rodinal-style high-dilution / stand development.
+const DEV_BETA = {
+    stock:  0.70,    // strong reservoir — smooth gradients, minimal edges
+    '1+1':  0.62,
+    '1+3':  0.52,
+    '1+9':  0.40,
+    '1+25': 0.30,
+    '1+50': 0.26,
+    stand:  0.22     // weak reservoir — sharp gradients, strong edges
+};
+
 const upload = document.getElementById('upload');
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d', { willReadFrequently: true });
 const statusDiv = document.getElementById('status');
 const versionBadge = document.getElementById('versionBadge');
 
+const debugModeSelect = document.getElementById('debugMode');
+
 const controls = {
     filmStock: document.getElementById('filmStock'),
     colorFilter: document.getElementById('colorFilter'),
     filmWhiteBalance: document.getElementById('filmWhiteBalance'),
     exposureStops: document.getElementById('exposureStops'),
-    pushPull: document.getElementById('pushPull'),
-    opticalScatter: document.getElementById('opticalScatter'),
-    halation: document.getElementById('halation'),
-    exhaustion: document.getElementById('exhaustion'),
-    diffusionRadius: document.getElementById('diffusionRadius'),
-    eberhard: document.getElementById('eberhard'),
-    grain: document.getElementById('grain'),
-    printContrast: document.getElementById('printContrast')
+    dilution: document.getElementById('dilution'),
+    devTime: document.getElementById('devTime'),
+    devTemp: document.getElementById('devTemp'),
+    paperGrade: document.getElementById('paperGrade')
 };
 
 const values = {
@@ -364,14 +555,10 @@ const values = {
     colorFilter: document.getElementById('colorFilterValue'),
     filmWhiteBalance: document.getElementById('filmWhiteBalanceValue'),
     exposureStops: document.getElementById('exposureStopsValue'),
-    pushPull: document.getElementById('pushPullValue'),
-    opticalScatter: document.getElementById('opticalScatterValue'),
-    halation: document.getElementById('halationValue'),
-    exhaustion: document.getElementById('exhaustionValue'),
-    diffusionRadius: document.getElementById('diffusionRadiusValue'),
-    eberhard: document.getElementById('eberhardValue'),
-    grain: document.getElementById('grainValue'),
-    printContrast: document.getElementById('printContrastValue')
+    dilution: document.getElementById('dilutionValue'),
+    devTime: document.getElementById('devTimeValue'),
+    devTemp: document.getElementById('devTempValue'),
+    paperGrade: document.getElementById('paperGradeValue')
 };
 
 let originalImgData = null;
@@ -382,6 +569,7 @@ let imgWidth = 0;
 let imgHeight = 0;
 let processTimer = null;
 let processVersion = 0;
+let pushRatio = 1.0; // devTime / nominalDevTime[film][dilution] — preserved across film/dilution changes
 
 document.title = `JS Filmulator POC ${APP_VERSION}`;
 versionBadge.innerText = APP_VERSION;
@@ -396,7 +584,7 @@ upload.addEventListener('change', (event) => {
     reader.onload = (readerEvent) => {
         const img = new Image();
         img.onload = () => {
-            const maxDimension = 1100;
+            const maxDimension = 2622;
             let w = img.naturalWidth || img.width;
             let h = img.naturalHeight || img.height;
 
@@ -426,15 +614,25 @@ upload.addEventListener('change', (event) => {
     reader.readAsDataURL(file);
 });
 
-Object.values(controls).forEach((control) => {
-    control.addEventListener('input', () => {
-        updateControlLabels();
-        if (originalImgData) scheduleProcess();
-    });
-    control.addEventListener('change', () => {
-        updateControlLabels();
-        if (originalImgData) scheduleProcess();
-    });
+// Film stock and dilution changes re-anchor devTime to preserve pushRatio
+function reanchorDevTime() {
+    const nomTime = getNominalTime(controls.filmStock.value, controls.dilution.value);
+    controls.devTime.value = clamp(pushRatio * nomTime, 2.0, 90.0).toFixed(1);
+}
+
+[controls.filmStock, controls.dilution].forEach((ctrl) => {
+    ctrl.addEventListener('input',  () => { reanchorDevTime(); updateControlLabels(); if (originalImgData) scheduleProcess(); });
+    ctrl.addEventListener('change', () => { reanchorDevTime(); updateControlLabels(); if (originalImgData) scheduleProcess(); });
+});
+
+[controls.colorFilter, controls.filmWhiteBalance, controls.exposureStops,
+ controls.devTime, controls.devTemp, controls.paperGrade].forEach((ctrl) => {
+    ctrl.addEventListener('input',  () => { updateControlLabels(); if (originalImgData) scheduleProcess(); });
+    ctrl.addEventListener('change', () => { updateControlLabels(); if (originalImgData) scheduleProcess(); });
+});
+
+debugModeSelect.addEventListener('change', () => {
+    if (originalImgData) scheduleProcess();
 });
 
 function updateControlLabels() {
@@ -442,20 +640,37 @@ function updateControlLabels() {
     const filter = FILTERS[controls.colorFilter.value];
     const filmK = parseInt(controls.filmWhiteBalance.value, 10);
     const ev = parseFloat(controls.exposureStops.value);
-    const push = parseFloat(controls.pushPull.value);
+    const devTime = parseFloat(controls.devTime.value);
+    const devTemp = parseFloat(controls.devTemp.value);
+    const paperGrade = parseFloat(controls.paperGrade.value);
+
+    const nomTime = getNominalTime(controls.filmStock.value, controls.dilution.value);
+    pushRatio = devTime / nomTime;
 
     values.filmStock.innerText = film.label;
     values.colorFilter.innerText = filter.label;
-    values.filmWhiteBalance.innerText = `${filmK} K Â· ${describeFilmBalance(filmK)}`;
+    values.filmWhiteBalance.innerText = `${filmK} K · ${describeFilmBalance(filmK)}`;
     values.exposureStops.innerText = `${ev >= 0 ? '+' : ''}${ev.toFixed(1)} EV`;
-    values.pushPull.innerText = push === 0 ? 'normal' : `${push > 0 ? '+' : ''}${push.toFixed(1)} dev`;
-    values.opticalScatter.innerText = parseFloat(controls.opticalScatter.value).toFixed(2);
-    values.halation.innerText = parseFloat(controls.halation.value).toFixed(2);
-    values.exhaustion.innerText = parseFloat(controls.exhaustion.value).toFixed(2);
-    values.diffusionRadius.innerText = `${parseInt(controls.diffusionRadius.value, 10)} px`;
-    values.eberhard.innerText = parseFloat(controls.eberhard.value).toFixed(2);
-    values.grain.innerText = parseFloat(controls.grain.value).toFixed(2);
-    values.printContrast.innerText = parseFloat(controls.printContrast.value).toFixed(2);
+    values.dilution.innerText = controls.dilution.options[controls.dilution.selectedIndex].value === 'stock'
+        ? 'Stock (1+0)' : controls.dilution.value;
+    values.devTime.innerText = `${devTime.toFixed(1)} min · ${devTimePushLabel(pushRatio)}`;
+    values.devTemp.innerText = `${devTemp.toFixed(1)} °C`;
+    const gradeName = GRADE_NAMES[paperGrade];
+    values.paperGrade.innerText = `Grade ${paperGrade % 1 === 0 ? paperGrade.toFixed(0) : paperGrade.toFixed(1)}${gradeName ? ' — ' + gradeName : ''}`;
+}
+
+function getNominalTime(filmKey, dilutionKey) {
+    return NOMINAL_DEV_TIMES[filmKey]?.[dilutionKey] ?? FILM_PROFILES[filmKey].nominalDevTime;
+}
+
+function devTimePushLabel(ratio) {
+    if (ratio < 0.75) {
+        const stops = Math.round(Math.log2(1 / ratio) * 2) / 2;
+        return `Pull −${stops % 1 === 0 ? stops.toFixed(0) : stops.toFixed(1)}`;
+    }
+    if (ratio <= 1.25) return 'Normal';
+    const stops = Math.round(Math.log2(ratio) * 2) / 2;
+    return `Push +${stops % 1 === 0 ? stops.toFixed(0) : stops.toFixed(1)}`;
 }
 
 function scheduleProcess() {
@@ -492,19 +707,115 @@ function processImage(version) {
     const dst = outputImgData.data;
     const size = imgWidth * imgHeight;
 
+    const debugMode = debugModeSelect.value;
+
+    // [E1] BT.709 identity bypass: sRGB→linear→BT.709 luma→sRGB, no film processing.
+    if (debugMode === 'e1') {
+        for (let i = 0; i < size; i++) {
+            const idx = i * 4;
+            const luma = 0.2126 * linearR[i] + 0.7152 * linearG[i] + 0.0722 * linearB[i];
+            const byte = linearToByte(luma);
+            dst[idx] = byte; dst[idx + 1] = byte; dst[idx + 2] = byte;
+            dst[idx + 3] = originalImgData.data[idx + 3];
+        }
+        if (version !== processVersion) return;
+        ctx.putImageData(outputImgData, 0, 0);
+        statusDiv.innerText = `E1 identity bypass · ${Math.round(performance.now() - start)} ms`;
+        return;
+    }
+
+    // [E2] Spectral weights bypass: applies film panchromatic weights + WB + filter,
+    // encodes directly to sRGB. No H-D curve or effects. Isolates E2 from all downstream.
+    if (debugMode === 'e2') {
+        const filmE2 = FILM_PROFILES[controls.filmStock.value];
+        const filterE2 = FILTERS[controls.colorFilter.value];
+        const wbE2 = filmBalanceMultipliers(parseInt(controls.filmWhiteBalance.value, 10));
+        const evE2 = parseFloat(controls.exposureStops.value) + filterE2.ev;
+        const spectralE2 = effectiveSpectralWeights(filmE2.weights, wbE2, filterE2);
+        const expMulE2 = Math.pow(2, evE2);
+        for (let i = 0; i < size; i++) {
+            const idx = i * 4;
+            const h = clamp((linearR[i] * spectralE2.r + linearG[i] * spectralE2.g + linearB[i] * spectralE2.b) * expMulE2, 0, 1);
+            const byte = linearToByte(h);
+            dst[idx] = byte; dst[idx + 1] = byte; dst[idx + 2] = byte;
+            dst[idx + 3] = originalImgData.data[idx + 3];
+        }
+        if (version !== processVersion) return;
+        ctx.putImageData(outputImgData, 0, 0);
+        statusDiv.innerText = `E2 spectral bypass · ${controls.filmStock.value.toUpperCase()} · ${Math.round(performance.now() - start)} ms`;
+        return;
+    }
+
+    // [E3] Optical transport bypass: E1+E2+E3 (scatter + halation) → sRGB directly.
+    // Applied at stock-defined levels. Halation display is boosted ×20 (diagnostic only)
+    // because halation strength is calibrated relative to the H-D curve's shoulder compression.
+    if (debugMode === 'e3') {
+        const fE3 = FILM_PROFILES[controls.filmStock.value];
+        const flE3 = FILTERS[controls.colorFilter.value];
+        const wbE3 = filmBalanceMultipliers(parseInt(controls.filmWhiteBalance.value, 10));
+        const spectralE3 = effectiveSpectralWeights(fE3.weights, wbE3, flE3);
+        const expMulE3 = Math.pow(2, parseFloat(controls.exposureStops.value) + flE3.ev);
+
+        const rawE = new Float32Array(size);
+        const scatE = new Float32Array(size);
+        const halSrc = new Float32Array(size);
+        const halMap = new Float32Array(size);
+
+        for (let i = 0; i < size; i++) {
+            const h = Math.max(0, (linearR[i] * spectralE3.r + linearG[i] * spectralE3.g + linearB[i] * spectralE3.b) * expMulE3);
+            rawE[i] = h;
+            halSrc[i] = smoothThreshold(h, fE3.halationThreshold, fE3.halationThreshold + 0.65) * h;
+        }
+
+        const scatRadius = Math.max(0, Math.round(fE3.opticalRadius * 2));
+        if (scatRadius > 0) {
+            gaussianBlur2D(rawE, scatE, imgWidth, imgHeight, scatRadius);
+            for (let i = 0; i < size; i++) scatE[i] = rawE[i] * 0.82 + scatE[i] * 0.18;
+        } else {
+            scatE.set(rawE);
+        }
+
+        gaussianBlur2D(halSrc, halMap, imgWidth, imgHeight, fE3.halationRadius);
+        // ×20 display boost: halation is calibrated for the H-D shoulder; raw addition is sub-pixel without it.
+        let maxHalSrc = 0;
+        for (let i = 0; i < size; i++) if (halSrc[i] > maxHalSrc) maxHalSrc = halSrc[i];
+        for (let i = 0; i < size; i++) scatE[i] += halMap[i] * fE3.halationStrength * 20;
+
+        for (let i = 0; i < size; i++) {
+            const idx = i * 4;
+            const byte = linearToByte(clamp(scatE[i], 0, 1));
+            dst[idx] = byte; dst[idx + 1] = byte; dst[idx + 2] = byte;
+            dst[idx + 3] = originalImgData.data[idx + 3];
+        }
+        if (version !== processVersion) return;
+        ctx.putImageData(outputImgData, 0, 0);
+        const halNote = maxHalSrc < 0.001 ? 'no highlights above threshold' : `max halSrc ${maxHalSrc.toFixed(3)} · display ×20`;
+        statusDiv.innerText = `E3 optical bypass · ${controls.filmStock.value.toUpperCase()} · ${halNote} · ${Math.round(performance.now() - start)} ms`;
+        return;
+    }
+
     const film = FILM_PROFILES[controls.filmStock.value];
     const filter = FILTERS[controls.colorFilter.value];
     const wb = filmBalanceMultipliers(parseInt(controls.filmWhiteBalance.value, 10));
     const exposureEV = parseFloat(controls.exposureStops.value) + filter.ev;
     const exposureMultiplier = Math.pow(2, exposureEV);
-    const pushPull = parseFloat(controls.pushPull.value);
-    const opticalScatter = parseFloat(controls.opticalScatter.value);
-    const halationAmount = parseFloat(controls.halation.value);
-    const exhaustion = parseFloat(controls.exhaustion.value);
-    const diffusionRadius = parseInt(controls.diffusionRadius.value, 10);
-    const eberhardAmount = parseFloat(controls.eberhard.value);
-    const grainAmount = parseFloat(controls.grain.value);
-    const printContrast = parseFloat(controls.printContrast.value);
+
+    // Real-world development parameters → engine values
+    const devTime = parseFloat(controls.devTime.value);
+    const devTemp = parseFloat(controls.devTemp.value);
+    const tempFactor = Math.pow(1.1, devTemp - 20.0);       // ~10% faster per °C above 20
+    const effectiveDevTime = devTime * tempFactor;
+    const devC0 = DEV_C0[controls.dilution.value] ?? 0.5;
+    const devK = DEV_k[controls.dilution.value] ?? 0.5;
+    const devBeta = DEV_BETA[controls.dilution.value] ?? 0.5;
+    // Per-dilution nominal time anchors all kinetics: ratio=1.0 → film.gamma at any dilution
+    const nominalTimeDilution = getNominalTime(controls.filmStock.value, controls.dilution.value);
+    const diffusionRadius = Math.max(0, Math.round(effectiveDevTime * film.diffusionBase / nominalTimeDilution));
+    const grainFactor = Math.pow(effectiveDevTime / nominalTimeDilution, 0.5);
+
+    // Paper grade → paper H-D curve gamma (slope of straight-line section)
+    const paperGrade = parseFloat(controls.paperGrade.value);
+    const paperGamma = PAPER_GAMMA[Math.min(5, Math.max(0, Math.round(paperGrade)))] ?? 1.45;
 
     const rawExposure = new Float32Array(size);
     const scatteredExposure = new Float32Array(size);
@@ -513,7 +824,6 @@ function processImage(version) {
     const localDeveloper = new Float32Array(size);
     const diffusedDeveloper = new Float32Array(size);
     const density = new Float32Array(size);
-    const blurredDensity = new Float32Array(size);
     const grainField = new Float32Array(size);
     const grainBlurred = new Float32Array(size);
 
@@ -533,11 +843,12 @@ function processImage(version) {
         halationSource[i] = source * h;
     }
 
-    // PASS 2 [E3]: optical transport before development: emulsion scatter + monochrome halation.
-    const scatterRadius = Math.max(0, Math.round(film.opticalRadius * opticalScatter * 2));
+    // PASS 2 [E3]: optical transport — always applied at stock-defined levels.
+    // Scatter: fixed MTF loss from film.opticalRadius; halation: fixed from film.halationStrength.
+    const scatterRadius = Math.max(0, Math.round(film.opticalRadius * 2));
     if (scatterRadius > 0) {
-        boxBlur2D(rawExposure, scatteredExposure, imgWidth, imgHeight, scatterRadius);
-        const scatterMix = clamp(0.18 * opticalScatter, 0, 0.45);
+        gaussianBlur2D(rawExposure, scatteredExposure, imgWidth, imgHeight, scatterRadius);
+        const scatterMix = 0.18;
         for (let i = 0; i < size; i++) {
             scatteredExposure[i] = rawExposure[i] * (1 - scatterMix) + scatteredExposure[i] * scatterMix;
         }
@@ -545,68 +856,94 @@ function processImage(version) {
         scatteredExposure.set(rawExposure);
     }
 
-    const halRadius = Math.max(1, Math.round(film.halationRadius * (0.7 + halationAmount * 0.9)));
-    boxBlur2D(halationSource, halationMap, imgWidth, imgHeight, halRadius);
-    const halStrength = film.halationStrength * halationAmount;
-    if (halStrength > 0) {
+    gaussianBlur2D(halationSource, halationMap, imgWidth, imgHeight, film.halationRadius);
+    for (let i = 0; i < size; i++) {
+        scatteredExposure[i] += halationMap[i] * film.halationStrength;
+    }
+
+    // PASSES 3–4 [E4]: iterative reaction-diffusion development — engines/04-development.md.
+    //
+    // Physics: first-order reaction kinetics (dC/dt = -k·demand·C) coupled to
+    // Fickian diffusion in swollen gelatin. Developer concentration C starts at
+    // C0 (set by dilution), is consumed locally in proportion to silver demand × C,
+    // and is replenished by lateral diffusion from the shadow reservoir.
+    //
+    // Mackie lines and Eberhard adjacency overshoot emerge from the chemistry:
+    // at sharp boundaries, the highlight side exhausts its developer faster,
+    // creating a steep C gradient that drives diffusive flux from the shadow side.
+    //
+    const baseSteps = 6;
+    const DEV_STEPS = Math.max(5, Math.min(14,
+        Math.round(baseSteps * effectiveDevTime / nominalTimeDilution)));
+    const devField = localDeveloper;
+    devField.fill(devC0);
+    // density[] reused as running C-sum buffer during the loop
+    for (let i = 0; i < size; i++) density[i] = 0;
+    const stepDiffRadius = diffusionRadius > 0
+        ? Math.max(1, Math.round(diffusionRadius / Math.sqrt(DEV_STEPS)))
+        : 0;
+    for (let step = 0; step < DEV_STEPS; step++) {
         for (let i = 0; i < size; i++) {
-            scatteredExposure[i] += halationMap[i] * halStrength;
+            const demand = 1.0 - Math.exp(-1.45 * scatteredExposure[i]);
+            // First-order: ΔC = k · demand · C / N  (discretised per time step)
+            const dC = devK * demand * devField[i] / DEV_STEPS;
+            devField[i] = Math.max(devC0 * 0.005, devField[i] - dC);
+        }
+        if (stepDiffRadius > 0) {
+            gaussianBlur2D(devField, diffusedDeveloper, imgWidth, imgHeight, stepDiffRadius);
+            const localWeight = 1.0 - devBeta;
+            for (let i = 0; i < size; i++) {
+                // Diffusion coupling varies with dilution (Fick's law:
+                // J = D·∇C; ∇C is bounded by the absolute concentration C0,
+                // so less developer is transported at higher dilutions).
+                devField[i] = localWeight * devField[i] + devBeta * diffusedDeveloper[i];
+            }
+        }
+        // Accumulate C for averaging — density[] is the running sum
+        for (let i = 0; i < size; i++) {
+            density[i] += devField[i];
         }
     }
-
-    // PASS 3 [E4]: local developer exhaustion and lateral chemical diffusion.
+    // Developer multiplier = average concentration / initial concentration.
+    // If developer was never depleted, C_avg = C0 → multiplier ≈ 1.
+    // If developer dropped to 60% of C0, multiplier ≈ 0.6 (compensating effect).
+    // This is the correct physical quantity: the fraction of demanded silver
+    // that could actually develop, given the available developer over time.
+    //
+    // devTimeRatio = 1.0 at normal time for the current dilution → always yields film.gamma.
+    const devTimeRatio = effectiveDevTime / nominalTimeDilution;
     for (let i = 0; i < size; i++) {
-        const silverDemand = 1.0 - Math.exp(-1.45 * scatteredExposure[i]);
-        localDeveloper[i] = Math.exp(-exhaustion * silverDemand);
-    }
-    boxBlur2D(localDeveloper, diffusedDeveloper, imgWidth, imgHeight, diffusionRadius);
-
-    // PASS 4 [E4]: H-D characteristic curve in density space.
-    for (let i = 0; i < size; i++) {
-        const devLocal = localDeveloper[i];
-        const devBlur = diffusedDeveloper[i];
-        const adjacencyDev = clamp(devBlur + (devBlur - devLocal) * 0.65, 0.035, 1.20);
-        density[i] = hdDensity(scatteredExposure[i], adjacencyDev, film, pushPull);
+        const cAvg = density[i] / DEV_STEPS;
+        const devMultiplier = clamp(cAvg / devC0, 0.02, 1.0);
+        density[i] = hdDensity(scatteredExposure[i], devMultiplier, film, devTimeRatio);
     }
 
-    // PASS 5 [E5]: Eberhard / Mackie effect as adaptive high-pass in density domain.
-    const edgeRadius = Math.max(1, Math.round(diffusionRadius * 0.45));
-    boxBlur2D(density, blurredDensity, imgWidth, imgHeight, edgeRadius);
-    const edgeGain = film.eberhard * eberhardAmount * (1 + Math.max(0, pushPull) * 0.16);
-    if (edgeGain > 0) {
-        for (let i = 0; i < size; i++) {
-            const hp = density[i] - blurredDensity[i];
-            const edgeMask = smoothstep(0.006, 0.075, Math.abs(hp));
-            density[i] = clamp(density[i] + hp * edgeGain * edgeMask, film.dMin, film.dMax);
-        }
-    }
-
-    // PASS 6 [E6+E7]: spatially correlated grain, then positive print output.
+    // PASS 6 [E6+E7]: grain in negative density domain (Selwyn model), then paper H-D curve output.
     for (let i = 0; i < size; i++) {
         grainField[i] = hashNoise(i * 17 + 13);
     }
-    const grainRadius = Math.max(0, Math.round(film.grainRadius * (0.6 + grainAmount * 0.9)));
-    if (grainRadius > 0) boxBlur2D(grainField, grainBlurred, imgWidth, imgHeight, grainRadius);
+    // [E6] Gaussian correlation blur: models crystal-cluster morphology more accurately than box blur.
+    if (film.grainRadius > 0) gaussianBlur2D(grainField, grainBlurred, imgWidth, imgHeight, film.grainRadius);
     else grainBlurred.set(grainField);
 
     const densityRange = film.dMax - film.dMin;
-    const grainBase = film.grain * grainAmount * (1 + Math.max(0, pushPull) * 0.45);
+    const grainBase = film.grain * grainFactor;
 
     for (let i = 0; i < size; i++) {
         const idx = i * 4;
         let dNorm = clamp((density[i] - film.dMin) / densityRange, 0, 1);
 
-        // Positive image from negative density: greater negative density maps to brighter positive tone.
-        let positive = printDensityToPositive(dNorm, printContrast);
-
+        // [E6] Grain added to negative density before printing (Selwyn-Nutting model).
+        // Variance ∝ D·(1 − D/Dmax): peaks in midtones, vanishes at clear base and maximum density.
+        // Grain is structure in the negative carried through the paper curve, not a post-process overlay.
         if (grainBase > 0) {
-            const midDensity = Math.sqrt(clamp(dNorm * (1 - dNorm) + 0.018, 0, 1));
-            const positiveShadowWeight = Math.pow(clamp(1 - positive, 0, 1), 0.70);
-            const highlightSuppress = 1 - smoothstep(0.82, 0.99, positive);
-            const clumpyNoise = grainField[i] * 0.62 + grainBlurred[i] * 1.45;
-            const amp = grainBase * midDensity * (0.25 + 1.45 * positiveShadowWeight) * highlightSuppress;
-            positive = clamp(positive + clumpyNoise * amp, 0, 1);
+            const selwynAmp = Math.sqrt(Math.max(0, dNorm * (1.0 - dNorm * 0.85)));
+            const clumpyNoise = grainField[i] * 0.55 + grainBlurred[i] * 1.32;
+            dNorm = clamp(dNorm + clumpyNoise * grainBase * selwynAmp * 2.4, 0, 1);
         }
+
+        // [E7] Paper H-D curve: negative density → paper exposure → paper density → reflectance.
+        const positive = printDensityToPositive(dNorm, paperGamma);
 
         const byte = linearToByte(positive);
         dst[idx] = byte;
@@ -619,7 +956,9 @@ function processImage(version) {
 
     ctx.putImageData(outputImgData, 0, 0);
     const elapsed = Math.round(performance.now() - start);
-    statusDiv.innerText = `Done in ${elapsed} ms Â· ${APP_VERSION}`;
+    const dilLabel = controls.dilution.value === 'stock' ? '1+0' : controls.dilution.value;
+    const pushLabel = devTimePushLabel(devTime / nominalTimeDilution);
+    statusDiv.innerText = `${film.label} · D-76 ${dilLabel} · ${devTime.toFixed(1)} min (${pushLabel}) @ ${devTemp.toFixed(0)} °C · grade ${paperGrade % 1 === 0 ? paperGrade.toFixed(0) : paperGrade.toFixed(1)} · ${elapsed} ms`;
 }
 
 function effectiveSpectralWeights(base, wb, filter) { // E2 → engines/02-spectral-sensitivity.md
@@ -631,46 +970,81 @@ function effectiveSpectralWeights(base, wb, filter) { // E2 → engines/02-spect
     return { r: r / sum, g: g / sum, b: b / sum };
 }
 
-function hdDensity(exposure, developer, film, pushPull) { // E4 → engines/04-development.md
+function hdDensity(exposure, developer, film, devTimeRatio) { // E4 → engines/04-development.md
     const safeExposure = Math.max(exposure, 1e-7);
     const logH = Math.log10(safeExposure);
 
-    // Push development increases gradient, shifts the toe right, and raises maximum density.
-    // Pull development lowers gradient and keeps shadows gentler.
-    const gamma = film.gamma * (1 + pushPull * 0.24);
-    const inertia = film.inertia + Math.max(0, pushPull) * 0.11 + Math.min(0, pushPull) * 0.05;
-    const toe = Math.max(0.18, film.toe + Math.max(0, pushPull) * 0.07);
-    const shoulder = Math.max(0.72, film.shoulder - Math.max(0, pushPull) * 0.10);
-    const dMax = film.dMax * (1 + Math.max(0, pushPull) * 0.06);
+    // Gamma derived from development time via first-order reaction kinetics:
+    //   G(t) = G_∞ · (1 − e^(−t/τ))
+    // Constrained by G(t_nom) = film.gamma and G_∞ = 2·film.gamma (material limit for ID-11),
+    // giving τ = t_nom/ln(2), which simplifies to:
+    //   G(t) = 2·film.gamma · (1 − 2^(−t/t_nom))
+    // Verified: G(FP4+, 8.5 min, stock) = 0.55; G(HP5+, 6.5 min, stock) = 0.52.
+    // Push data (HP5+ ID-11 stock, Ilford datasheet): 9.5 min → ratio 1.46, 14 min → 2.15.
+    const gamma = film.gamma * 2.0 * (1.0 - Math.pow(2.0, -devTimeRatio));
+    const inertia = film.inertia;
+    const toe = film.toe;
+    const shoulderAmount = film.shoulder;
+    const dMax = film.dMax;
     const dRange = dMax - film.dMin;
 
     // Softplus toe: smooth transition from underexposure into the straight-line region.
     const x = (logH - inertia) / toe;
     const toeExposure = softplus(x) * toe;
-    const densityDrive = Math.max(0, toeExposure * gamma * 1.78 * developer);
 
-    // Exponential saturation: shoulder compression as density approaches Dmax.
-    const formed = 1.0 - Math.exp(-densityDrive / shoulder);
-    return clamp(film.dMin + dRange * formed, film.dMin, dMax);
+    // Straight-line drive: density = dMin + drive in the linear region.
+    // driveCal bridges the softplus toe offset. Calibrated so that at FP4
+    // defaults (gamma=0.55, 1+1, 7min, grade 2):
+    //   - mid-grey (18%) → density ~0.59 → sRGB ~134
+    //   - scene white (90%) → density ~1.05 → sRGB ~235
+    const driveCal = 1.71;
+    const drive = Math.max(0, toeExposure * gamma * driveCal * developer);
+
+    // Knee-based shoulder: linear (constant gamma) below the knee,
+    // exponential compression above. Real H-D curves have a long straight-line
+    // section; the shoulder only activates near Dmax.
+    const kneeFrac = 0.55;  // fraction of dRange where shoulder begins
+    const kneeDrive = kneeFrac * dRange;
+
+    if (drive <= kneeDrive) {
+        return clamp(film.dMin + drive, film.dMin, dMax);
+    } else {
+        const excess = drive - kneeDrive;
+        const compressed = shoulderAmount * (1.0 - Math.exp(-excess / shoulderAmount));
+        return clamp(film.dMin + kneeDrive + compressed, film.dMin, dMax);
+    }
 }
 
-function printDensityToPositive(dNorm, contrast) { // E7 → engines/07-print-positive.md
-    // Scanner/print-like positive rendering from normalized negative density.
-    // Keeps film density monotonic: higher negative density -> brighter positive tone.
-    let v = clamp(dNorm, 0, 1);
-    const black = 0.020;
-    const white = 0.985;
-    v = clamp((v - black) / (white - black), 0, 1);
-
-    const c = 1.0 + (contrast - 1.0) * 1.75;
-    const denominator = 2.0 * Math.tanh(c * 0.5);
-    v = 0.5 + Math.tanh((v - 0.5) * c) / denominator;
-
-    // Gentle display toe/shoulder to avoid harsh digital endpoints.
-    return smoothstep(0, 1, v);
+function printDensityToPositive(dNorm, paperGamma) { // E7 → engines/07-print-positive.md
+    // Models the sensitometric response of silver-gelatin printing paper (Ilford RC Glossy reference).
+    //
+    // dNorm [0,1]: normalized negative density. dNorm=0 → clear base → maximum paper exposure → darkest print.
+    //             dNorm=1 → max negative density → minimum paper exposure → brightest print.
+    //
+    // LOG_E_RANGE=2.50 calibrated so that at grade 2 (γ=1.45):
+    //   scene 18% grey → D_neg≈0.59 → dNorm≈0.37 → normalized brightness ≈ 0.50 (sRGB ~128)
+    //
+    // Paper H-D curve: Dmin=0.06 (base+fog), Dmax=2.00 (RC glossy), knee at 55% of density range.
+    const logE = -dNorm * 2.50;  // clear negative (dNorm=0) → logE=0; dense (dNorm=1) → logE=-2.50
+    const paperDmin = 0.06;
+    const paperDmax = 2.00;
+    const paperRange = paperDmax - paperDmin;
+    const x = (logE - (-1.20)) / 0.32;   // softplus toe: inertia=-1.20, toe width=0.32
+    const toeE = softplus(x) * 0.32;
+    const drive = toeE * paperGamma * 1.71;
+    const kneeDrive = 0.55 * paperRange;  // straight-line region below 55% of paper density range
+    let D_paper;
+    if (drive <= kneeDrive) {
+        D_paper = clamp(paperDmin + drive, paperDmin, paperDmax);
+    } else {
+        const excess = drive - kneeDrive;
+        D_paper = clamp(paperDmin + kneeDrive + 0.80 * (1.0 - Math.exp(-excess / 0.80)), paperDmin, paperDmax);
+    }
+    // D_paper (optical density) → normalized reflectance [0,1]: paper black (Dmax) → 0, paper white (Dmin) → 1.
+    return clamp((paperDmax - D_paper) / paperRange, 0, 1);
 }
 
-function boxBlur2D(src, dst, w, h, radius) { // shared kernel used by E3 E4 E5 E6
+function boxBlur2D(src, dst, w, h, radius) { // internal primitive — used only inside gaussianBlur2D
     if (radius <= 0) {
         dst.set(src);
         return;
@@ -710,6 +1084,43 @@ function boxBlur2D(src, dst, w, h, radius) { // shared kernel used by E3 E4 E5 E
             const addY = clampInt(y + radius + 1, 0, h - 1);
             sum += temp[addY * w + x] - temp[removeY * w + x];
         }
+    }
+}
+
+function gaussianBlur2D(src, dst, w, h, radius) { // E3 scatter/halation, E4 diffusion, E6 grain — three-pass box blur ≈ radially symmetric Gaussian (σ ≈ radius)
+    if (radius <= 0) { dst.set(src); return; }
+    const t1 = new Float32Array(w * h);
+    const t2 = new Float32Array(w * h);
+    boxBlur2D(src, t1, w, h, radius);
+    boxBlur2D(t1, t2, w, h, radius);
+    boxBlur2D(t2, dst, w, h, radius);
+}
+
+function exponentialBlur2D(src, dst, w, h, sigma) { // E3 halation — separable IIR matching Frieser exponential LSF
+    // Causal + anticausal first-order IIR: y[n] = (y_fwd[n] + y_bwd[n] − α·x[n]) / (2−α)
+    // Gives exact two-sided exponential falloff e^(−|x|/σ) along each axis.
+    if (sigma <= 0) { dst.set(src); return; }
+    const alpha = 1.0 - Math.exp(-1.0 / Math.max(sigma, 0.5));
+    const norm = 2.0 - alpha;
+    const temp = new Float32Array(w * h);
+    const fwd = new Float32Array(Math.max(w, h));
+    const bwd = new Float32Array(Math.max(w, h));
+
+    for (let y = 0; y < h; y++) {
+        const row = y * w;
+        fwd[0] = src[row];
+        for (let x = 1; x < w; x++) fwd[x] = alpha * src[row + x] + (1 - alpha) * fwd[x - 1];
+        bwd[w - 1] = src[row + w - 1];
+        for (let x = w - 2; x >= 0; x--) bwd[x] = alpha * src[row + x] + (1 - alpha) * bwd[x + 1];
+        for (let x = 0; x < w; x++) temp[row + x] = (fwd[x] + bwd[x] - alpha * src[row + x]) / norm;
+    }
+
+    for (let x = 0; x < w; x++) {
+        fwd[0] = temp[x];
+        for (let y = 1; y < h; y++) fwd[y] = alpha * temp[y * w + x] + (1 - alpha) * fwd[y - 1];
+        bwd[h - 1] = temp[(h - 1) * w + x];
+        for (let y = h - 2; y >= 0; y--) bwd[y] = alpha * temp[y * w + x] + (1 - alpha) * bwd[y + 1];
+        for (let y = 0; y < h; y++) dst[y * w + x] = (fwd[y] + bwd[y] - alpha * temp[y * w + x]) / norm;
     }
 }
 
