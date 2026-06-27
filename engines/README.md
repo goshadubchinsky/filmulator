@@ -26,12 +26,12 @@ modeling the cause.
 | # | Engine | Realness | One-line assessment |
 |---|--------|:--------:|---------------------|
 | 1 | [Input / Scene-Linear](01-input-scene-linear.md) | 4/10 | sRGB linearization is exact, but a processed 8-bit JPEG is treated as scene radiance |
-| 2 | [Spectral Sensitivity](02-spectral-sensitivity.md) | 5/10 | 3-sample RGB stand-in for a continuous spectral integral; weights are tuned, not measured |
-| 3 | [Optical Transport](03-optical-transport.md) | 6/10 | halation uses Frieser exponential LSF (IIR); scatter uses Gaussian approx; separable kernels, not radially symmetric |
-| 4 | [Development](04-development.md) | 9/10 | iterative rxn-diff (5–14 steps, ∝ time); first-order kinetics; Ilford-calibrated dilution; silver accumulation; 70/30 reservoir diffusion; adjacency emerges |
+| 2 | [Spectral Sensitivity](02-spectral-sensitivity.md) | 7/10 | 3-sample RGB integral; weights now aligned with published FP4+/HP5+ spectral characteristics |
+| 3 | [Optical Transport](03-optical-transport.md) | 7/10 | scatter (Gaussian) and halation (Gaussian) both radially symmetric; parameters fitted, not from measured MTF |
+| 4 | [Development](04-development.md) | 9/10 | iterative rxn-diff (5–14 steps, ∝ time); Gaussian Fickian diffusion; first-order kinetics; adjacency emerges |
 | 5 | [Adjacency / Edge Effects](05-adjacency-edge-effects.md) | **RETIRED** | synthetic high-pass deleted; effect now emerges from E4 iterative development |
-| 6 | [Grain](06-grain.md) | 3/10 | procedural noise texture, not a stochastic silver-halide crystal model |
-| 7 | [Print / Positive](07-print-positive.md) | 4/10 | plausible density inversion, but the paper's own characteristic curve is unmodeled |
+| 6 | [Grain](06-grain.md) | 6/10 | Selwyn-Nutting amplitude in density domain; Gaussian correlation; procedural (not stochastic crystal) model |
+| 7 | [Print / Positive](07-print-positive.md) | 8/10 | real paper H-D curve (Dmin/Dmax/toe/shoulder); grade-based paper gamma from Ilford data; density→reflectance via optical density |
 
 Ratings are a snapshot. Update the table whenever an engine's score changes,
 and record *why* in that engine's progression log.
