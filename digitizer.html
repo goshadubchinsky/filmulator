@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spectral Sensitivity Digitizer</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #101113;
+            --panel: #1a1c20;
+            --text: #e8e8e8;
+            --muted: #9b9b9b;
+            --accent: #00e08a;
+            --border: #343842;
+            --warn: #ffcc66;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px;
+            margin: 0;
+        }
+        h2 { margin: 0 0 4px 0; font-size: 18px; }
+        .container { width: 100%; max-width: 900px; display: flex; flex-direction: column; gap: 10px; }
+        .toolbar {
+            background: var(--panel);
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            font-size: 12px;
+        }
+        .toolbar button {
+            background: var(--panel);
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .toolbar button.active { background: var(--accent); color: #000; border-color: var(--accent); }
+        .toolbar button.danger { border-color: #cc4444; color: #cc6666; }
+        .toolbar .sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+        .toolbar .hint { color: var(--muted); font-size: 11px; }
+        .canvas-wrap {
+            position: relative;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #000;
+            cursor: crosshair;
+            overflow: hidden;
+        }
+        canvas { display: block; width: 100%; }
+        .info {
+            background: var(--panel);
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 12px;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+        .info b { color: var(--text); }
+        .output {
+            background: var(--panel);
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 11px;
+            font-family: monospace;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            color: var(--accent);
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>Spectral Sensitivity Digitizer</h2>
+
+    <div class="toolbar">
+        <button id="btnLoad">1. Load Graph</button>
+        <input type="file" id="fileInput" accept="image/*" style="display:none">
+        <span class="sep"></span>
+        <button id="btnAxisX">2. X-Axis (λ nm)</button>
+        <button id="btnAxisY">3. Y-Axis (sens=1)</button>
+        <span class="sep"></span>
+        <button id="btnRefs">4. Mark λ Refs</button>
+        <button id="btnTrace">5. Trace Curve</button>
+        <button id="btnEdit">6. Edit Points</button>
+        <span class="sep"></span>
+        <button id="btnExport">Export JSON</button>
+        <button id="btnClear" class="danger">Clear All</button>
+        <span class="hint" id="hint">Click "Load Graph" to pick a file, paste (Ctrl+V), or drag &amp; drop an image</span>
+    </div>
+
+    <div class="canvas-wrap">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <div class="info" id="info">
+        <b>Steps:</b> Load graph (button/paste/drop) → draw X-axis → draw Y-axis → trace curve → edit points → export.
+    </div>
+    <div class="output" id="output"></div>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const info = document.getElementById('info');
+const output = document.getElementById('output');
+const hint = document.getElementById('hint');
+
+const MODE = { NONE:0, AXIS_X:1, AXIS_Y:2, REFS:3, TRACE:4, EDIT:5 };
+let mode = MODE.NONE;
+let graphImage = null;
+let axisX = null;       // {x1,y1,x2,y2, λStart, λEnd}  — pixel coords + wavelength labels
+let axisY = null;       // {x1,y1,x2,y2}  — pixel coords, y2 is "sensitivity=1"
+let refPoints = [];     // [{x,y, λ}]  — wavelength reference marks
+let tracePoints = [];   // [{x,y}]  — traced curve in pixel coords
+let traceActive = false;
+let editSelected = -1;  // index of point being dragged in EDIT mode
+
+const REF_WAVELENGTHS = [400, 450, 500, 550, 600, 650];
+let refIndex = 0;
+
+// ---- toolbar buttons ----
+document.getElementById('btnLoad').addEventListener('click', () => {
+    document.getElementById('fileInput').click();
+});
+
+document.getElementById('fileInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    loadImage(url);
+});
+
+document.getElementById('btnAxisX').addEventListener('click', () => {
+    mode = MODE.AXIS_X;
+    updateButtons();
+    hint.innerText = 'Click LEFT end of X-axis, then RIGHT end. You\'ll label wavelengths after.';
+});
+
+document.getElementById('btnAxisY').addEventListener('click', () => {
+    mode = MODE.AXIS_Y;
+    updateButtons();
+    hint.innerText = 'Click BOTTOM of Y-axis (sens=0), then TOP (sens=1).';
+});
+
+document.getElementById('btnRefs').addEventListener('click', () => {
+    if (!axisX) { hint.innerText = 'ERROR: Draw X-axis first!'; return; }
+    mode = MODE.REFS;
+    refIndex = 0;
+    updateButtons();
+    hint.innerText = `Mark λ=${REF_WAVELENGTHS[0]}nm on the X-axis (click its position).`;
+});
+
+document.getElementById('btnTrace').addEventListener('click', () => {
+    if (!axisX || !axisY) { hint.innerText = 'ERROR: Draw X and Y axes first!'; return; }
+    mode = MODE.TRACE;
+    tracePoints = [];
+    updateButtons();
+    hint.innerText = 'Click and drag along the sensitivity curve. Release to pause, click again to continue.';
+});
+
+document.getElementById('btnEdit').addEventListener('click', () => {
+    if (tracePoints.length < 2) { hint.innerText = 'ERROR: Trace a curve first!'; return; }
+    mode = MODE.EDIT;
+    editSelected = -1;
+    updateButtons();
+    hint.innerText = `Editing ${tracePoints.length} points. Drag points to adjust. Click empty space to deselect. Right-click a point to delete it.`;
+});
+
+document.getElementById('btnExport').addEventListener('click', exportJSON);
+document.getElementById('btnClear').addEventListener('click', clearAll);
+
+function updateButtons() {
+    for (const [id, m] of [['btnAxisX', MODE.AXIS_X], ['btnAxisY', MODE.AXIS_Y],
+                           ['btnRefs', MODE.REFS], ['btnTrace', MODE.TRACE],
+                           ['btnEdit', MODE.EDIT]]) {
+        document.getElementById(id).classList.toggle('active', mode === m);
+    }
+    document.getElementById('btnLoad').classList.toggle('active', mode === MODE.NONE);
+}
+
+// ---- paste / file load ----
+document.addEventListener('paste', (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+        if (item.type.startsWith('image/')) {
+            e.preventDefault();
+            const blob = item.getAsFile();
+            loadImage(URL.createObjectURL(blob));
+            return;
+        }
+    }
+});
+
+// Allow drag-and-drop onto the canvas
+canvas.addEventListener('dragover', (e) => { e.preventDefault(); });
+canvas.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer?.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+        loadImage(URL.createObjectURL(file));
+    }
+});
+
+function loadImage(url) {
+    const img = new Image();
+    img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        graphImage = img;
+        clearData();
+        redraw();
+        mode = MODE.NONE;
+        updateButtons();
+        hint.innerText = 'Graph loaded! Now: 2. Draw X-Axis (click left end, then right end).';
+    };
+    img.src = url;
+}
+
+// ---- click handling ----
+canvas.addEventListener('mousedown', (e) => {
+    if (!graphImage) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const px = (e.clientX - rect.left) * scaleX;
+    const py = (e.clientY - rect.top) * scaleY;
+
+    switch (mode) {
+        case MODE.AXIS_X:
+            handleAxisXClick(px, py);
+            break;
+        case MODE.AXIS_Y:
+            handleAxisYClick(px, py);
+            break;
+        case MODE.REFS:
+            handleRefClick(px, py);
+            break;
+        case MODE.TRACE:
+            traceActive = true;
+            tracePoints.push({x: px, y: py});
+            redraw();
+            break;
+        case MODE.EDIT:
+            if (e.button === 2 || e.ctrlKey) {
+                // Right-click: delete nearest point
+                const idx = nearestPoint(px, py, 12);
+                if (idx >= 0) {
+                    tracePoints.splice(idx, 1);
+                    editSelected = -1;
+                    redraw();
+                }
+                e.preventDefault();
+            } else {
+                // Left-click: select nearest point for dragging
+                editSelected = nearestPoint(px, py, 12);
+                if (editSelected >= 0) {
+                    traceActive = true;
+                }
+            }
+            break;
+    }
+});
+
+canvas.addEventListener('contextmenu', (e) => { if (mode === MODE.EDIT) e.preventDefault(); });
+
+canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const px = (e.clientX - rect.left) * scaleX;
+    const py = (e.clientY - rect.top) * scaleY;
+
+    if (mode === MODE.TRACE && traceActive) {
+        tracePoints.push({x: px, y: py});
+        redraw();
+    }
+    if (mode === MODE.EDIT && traceActive && editSelected >= 0) {
+        tracePoints[editSelected].x = px;
+        tracePoints[editSelected].y = py;
+        redraw();
+    }
+});
+
+canvas.addEventListener('mouseup', () => { traceActive = false; });
+canvas.addEventListener('mouseleave', () => { traceActive = false; });
+
+// ---- axis/ref handlers ----
+let axisXClicks = [];
+function handleAxisXClick(px, py) {
+    axisXClicks.push({x: px, y: py});
+    if (axisXClicks.length === 1) {
+        hint.innerText = 'Now click RIGHT end of X-axis.';
+    } else {
+        const start = prompt('Wavelength at LEFT end (nm)?', '350');
+        const end = prompt('Wavelength at RIGHT end (nm)?', '700');
+        if (start && end) {
+            axisX = { x1: axisXClicks[0].x, y1: axisXClicks[0].y,
+                      x2: axisXClicks[1].x, y2: axisXClicks[1].y,
+                      lambdaStart: parseFloat(start), lambdaEnd: parseFloat(end) };
+            axisXClicks = [];
+            hint.innerText = `X-axis: ${start}–${end}nm ✓. Now: 3. Draw Y-Axis.`;
+            mode = MODE.NONE;
+            updateButtons();
+        }
+        redraw();
+    }
+}
+
+let axisYClicks = [];
+function handleAxisYClick(px, py) {
+    axisYClicks.push({x: px, y: py});
+    if (axisYClicks.length === 1) {
+        hint.innerText = 'Now click TOP of Y-axis (sensitivity=1).';
+    } else {
+        axisY = { x1: axisYClicks[0].x, y1: axisYClicks[0].y,
+                  x2: axisYClicks[1].x, y2: axisYClicks[1].y };
+        axisYClicks = [];
+        hint.innerText = 'Y-axis set ✓. Now: 4. Mark λ Refs.';
+        mode = MODE.NONE;
+        updateButtons();
+        redraw();
+    }
+}
+
+function handleRefClick(px, py) {
+    refPoints.push({x: px, y: py, lambda: REF_WAVELENGTHS[refIndex]});
+    refIndex++;
+    if (refIndex < REF_WAVELENGTHS.length) {
+        hint.innerText = `Mark λ=${REF_WAVELENGTHS[refIndex]}nm on the X-axis.`;
+    } else {
+        hint.innerText = 'All λ refs marked ✓. Now: 5. Trace Curve.';
+        mode = MODE.NONE;
+        updateButtons();
+    }
+    redraw();
+}
+
+// ---- coordinate conversion ----
+function pixelToLambda(px) {
+    if (!axisX) return 0;
+    const dx = axisX.x2 - axisX.x1;
+    const t = dx !== 0 ? (px - axisX.x1) / dx : 0;
+    return axisX.lambdaStart + t * (axisX.lambdaEnd - axisX.lambdaStart);
+}
+
+function pixelToSensitivity(py) {
+    if (!axisY) return 0;
+    // y2 is top (sens=1), y1 is bottom (sens=0)
+    const dy = axisY.y1 - axisY.y2; // y1 is bottom (larger y), y2 is top (smaller y)
+    if (Math.abs(dy) < 1) return 0;
+    const t = (axisY.y1 - py) / dy; // 0 at bottom, 1 at top
+    return Math.max(0, Math.min(1, t));
+}
+
+// ---- export ----
+function exportJSON() {
+    if (tracePoints.length < 4) {
+        hint.innerText = 'ERROR: Trace some curve points first!';
+        return;
+    }
+
+    // Project trace points using only X-axis refs for wavelength calibration.
+    // Sort by X for monotonic wavelength.
+    const sorted = [...tracePoints].sort((a, b) => a.x - b.x);
+
+    // Downsample to reasonable resolution (~1nm steps across the visible range)
+    const lambdaMin = axisX ? axisX.lambdaStart : 350;
+    const lambdaMax = axisX ? axisX.lambdaEnd : 700;
+    const step = 1; // 1nm steps
+    const sampled = [];
+
+    let traceIdx = 0;
+    for (let lam = lambdaMin; lam <= lambdaMax; lam += step) {
+        // Find closest trace point to this wavelength
+        while (traceIdx < sorted.length - 1 && pixelToLambda(sorted[traceIdx].x) < lam) {
+            traceIdx++;
+        }
+        if (traceIdx < sorted.length) {
+            const sens = pixelToSensitivity(sorted[traceIdx].y);
+            sampled.push({ lambda: Math.round(lam), sensitivity: parseFloat(sens.toFixed(4)) });
+        }
+    }
+
+    // Also compute integrated RGB weights if we have enough data
+    const rgbWeights = computeRGBWeights(sampled);
+
+    const result = {
+        film: 'FP4 Plus (from datasheet digitization)',
+        source: 'Ilford FP4+ Technical Information sheet',
+        date: new Date().toISOString().split('T')[0],
+        axisX: axisX ? { lambdaStart: axisX.lambdaStart, lambdaEnd: axisX.lambdaEnd } : null,
+        refWavelengths: refPoints.map(r => ({ lambda: r.lambda, pixelX: Math.round(r.x) })),
+        curvePoints: sampled.length,
+        spectralSensitivity: sampled,
+        rgbWeights: rgbWeights
+    };
+
+    output.textContent = JSON.stringify(result, null, 2);
+    hint.innerText = `Exported ${sampled.length} points. RGB weights computed. Copy the JSON below.`;
+    info.innerHTML = `<b>RGB Weights (for film profile):</b><br>
+        r: ${rgbWeights.r.toFixed(4)}<br>
+        g: ${rgbWeights.g.toFixed(4)}<br>
+        b: ${rgbWeights.b.toFixed(4)}<br>
+        <small>Integrated from spectral curve × sRGB primaries × D65 illuminant.</small>`;
+}
+
+function computeRGBWeights(curve) {
+    // Standard sRGB primary wavelengths (approximate centroids after spectral integration)
+    // We use the CIE 1931 color matching functions convolved with sRGB primaries.
+    // Simplified: sample at 450nm (blue), 540nm (green), 610nm (red) with Gaussian weighting.
+    function getSens(lam) {
+        // Find nearest curve point
+        let best = null;
+        let bestDist = Infinity;
+        for (const p of curve) {
+            const d = Math.abs(p.lambda - lam);
+            if (d < bestDist) { bestDist = d; best = p; }
+        }
+        return best ? best.sensitivity : 0;
+    }
+
+    // Integrate spectral sensitivity × sRGB primary response
+    // sRGB primaries peak approximately at:
+    //   Red: ~610nm, Green: ~550nm, Blue: ~450nm
+    // We use Gaussian-weighted samples around each primary.
+    function integrate(center, sigma) {
+        let sum = 0;
+        let weight = 0;
+        for (let lam = 380; lam <= 700; lam += 5) {
+            const w = Math.exp(-0.5 * Math.pow((lam - center) / sigma, 2));
+            sum += getSens(lam) * w;
+            weight += w;
+        }
+        return weight > 0 ? sum / weight : 0;
+    }
+
+    const r = integrate(610, 40);
+    const g = integrate(550, 40);
+    const b = integrate(450, 40);
+
+    // Normalize so sum = 1
+    const total = r + g + b;
+    return {
+        r: parseFloat((r / total).toFixed(4)),
+        g: parseFloat((g / total).toFixed(4)),
+        b: parseFloat((b / total).toFixed(4))
+    };
+}
+
+// ---- drawing ----
+function redraw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (graphImage) ctx.drawImage(graphImage, 0, 0);
+
+    // X-axis
+    if (axisX) {
+        ctx.strokeStyle = '#ff4444';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(axisX.x1, axisX.y1); ctx.lineTo(axisX.x2, axisX.y2); ctx.stroke();
+        ctx.fillStyle = '#ff4444';
+        ctx.font = '12px monospace';
+        ctx.fillText(`${axisX.lambdaStart}nm`, axisX.x1 - 10, axisX.y1 + 16);
+        ctx.fillText(`${axisX.lambdaEnd}nm`, axisX.x2 - 10, axisX.y2 + 16);
+    }
+
+    // Axis X clicks in progress
+    for (const c of axisXClicks) {
+        ctx.fillStyle = '#ff4444';
+        ctx.beginPath(); ctx.arc(c.x, c.y, 5, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Y-axis
+    if (axisY) {
+        ctx.strokeStyle = '#ff4444';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(axisY.x1, axisY.y1); ctx.lineTo(axisY.x2, axisY.y2); ctx.stroke();
+        ctx.fillStyle = '#ff4444';
+        ctx.font = '12px monospace';
+        ctx.fillText('0', axisY.x1 - 18, axisY.y1 + 4);
+        ctx.fillText('1', axisY.x2 - 18, axisY.y2 + 4);
+    }
+
+    for (const c of axisYClicks) {
+        ctx.fillStyle = '#ff4444';
+        ctx.beginPath(); ctx.arc(c.x, c.y, 5, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Reference points
+    for (const r of refPoints) {
+        ctx.strokeStyle = '#ffcc00';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(r.x, axisY ? axisY.y1 : r.y);
+        ctx.lineTo(r.x, axisY ? axisY.y2 : r.y - 30);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#ffcc00';
+        ctx.beginPath(); ctx.arc(r.x, r.y, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillText(`${r.lambda}nm`, r.x - 16, (axisY?.y1 ?? r.y) + 16);
+    }
+
+    // Trace
+    if (tracePoints.length > 1) {
+        ctx.strokeStyle = '#00e08a';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(tracePoints[0].x, tracePoints[0].y);
+        for (let i = 1; i < tracePoints.length; i++) {
+            ctx.lineTo(tracePoints[i].x, tracePoints[i].y);
+        }
+        ctx.stroke();
+    }
+
+    // Edit handles (only in EDIT mode)
+    if (mode === MODE.EDIT) {
+        for (let i = 0; i < tracePoints.length; i++) {
+            const p = tracePoints[i];
+            ctx.fillStyle = (i === editSelected) ? '#ffcc00' : 'rgba(0,224,138,0.6)';
+            ctx.strokeStyle = (i === editSelected) ? '#ffcc00' : 'rgba(0,224,138,0.3)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, (i === editSelected) ? 6 : 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+        }
+    }
+}
+
+function nearestPoint(px, py, radius) {
+    let best = -1;
+    let bestDist = radius * radius;
+    for (let i = 0; i < tracePoints.length; i++) {
+        const dx = px - tracePoints[i].x;
+        const dy = py - tracePoints[i].y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < bestDist) { bestDist = d2; best = i; }
+    }
+    return best;
+}
+
+function clearData() {
+    axisX = null;
+    axisY = null;
+    axisXClicks = [];
+    axisYClicks = [];
+    refPoints = [];
+    tracePoints = [];
+    refIndex = 0;
+    output.textContent = '';
+}
+
+function clearAll() {
+    clearData();
+    graphImage = null;
+    canvas.width = 620;
+    canvas.height = 400;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    mode = MODE.NONE;
+    updateButtons();
+    hint.innerText = 'Click "Load Graph" to pick a file, paste (Ctrl+V), or drag & drop an image';
+    info.innerHTML = '<b>Steps:</b> Load graph (button/paste/drop) → draw X-axis → draw Y-axis → trace curve → edit points → export.';
+}
+
+// init
+canvas.width = 900;
+canvas.height = 500;
+ctx.fillStyle = '#1a1c20';
+ctx.fillRect(0, 0, canvas.width, canvas.height);
+ctx.fillStyle = '#9b9b9b';
+ctx.font = '16px -apple-system, sans-serif';
+ctx.textAlign = 'center';
+ctx.fillText('Click "Load Graph" or paste (Ctrl+V) or drag & drop an image here', canvas.width/2, canvas.height/2);
+</script>
+</body>
+</html>

@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E1 Test Harness — Grain Ensemble + Poisson Ag₄</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #101113;
+            --panel: #1a1c20;
+            --text: #e8e8e8;
+            --muted: #9b9b9b;
+            --accent: #00e08a;
+            --border: #343842;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px;
+            margin: 0;
+        }
+        h2 { margin: 0 0 4px 0; font-size: 20px; letter-spacing: -0.02em; }
+        p { color: var(--muted); font-size: 13px; margin: 0 0 4px 0; text-align: center; }
+        .container { width: 100%; max-width: 720px; display: flex; flex-direction: column; gap: 12px; }
+        canvas {
+            width: 100%;
+            border-radius: 8px;
+            background: #191b1f;
+            border: 1px solid var(--border);
+            display: block;
+        }
+        .controls {
+            background: var(--panel);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+        label { font-size: 12px; font-weight: 650; }
+        .value { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        input[type="range"] { width: 100%; }
+        .status { text-align: center; font-size: 11px; color: var(--accent); }
+        .annotation { color: var(--muted); font-size: 11px; text-align: center; line-height: 1.4; }
+        .legend { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; font-size: 10px; color: var(--muted); }
+        .legend span { display: flex; align-items: center; gap: 4px; }
+        .legend .swatch { width: 12px; height: 2px; border-radius: 1px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>E1 Test Harness — Grain Ensemble + Poisson Ag₄</h2>
+    <p>Linear gradient (0→1) through the latent image pipeline. 6 grain classes (faint lines) → reciprocity-adjusted weighted ensemble (thick green).</p>
+
+    <canvas id="gradient" width="700" height="80"></canvas>
+    <canvas id="curve" width="700" height="300"></canvas>
+
+    <div class="legend">
+        <span><span class="swatch" style="background:#ff6b6b"></span>r=2.0 (8%)</span>
+        <span><span class="swatch" style="background:#ffa500"></span>r=1.4 (17%)</span>
+        <span><span class="swatch" style="background:#ffd700"></span>r=1.0 (25%)</span>
+        <span><span class="swatch" style="background:#7ec8e3"></span>r=0.75 (25%)</span>
+        <span><span class="swatch" style="background:#6495ed"></span>r=0.55 (17%)</span>
+        <span><span class="swatch" style="background:#4169e1"></span>r=0.35 (8%)</span>
+        <span style="margin-left:8px"><span class="swatch" style="background:#00e08a"></span> ensemble</span>
+    </div>
+
+    <div class="controls">
+        <div class="row">
+            <label for="filmSpeed">Film Speed</label>
+            <span class="value" id="filmSpeedValue">ISO 125</span>
+        </div>
+        <input type="range" id="filmSpeed" min="0" max="8" step="1" value="3">
+
+        <div class="row">
+            <label for="ev">Exposure Bias</label>
+            <span class="value" id="evValue">0 EV</span>
+        </div>
+        <input type="range" id="ev" min="-5.0" max="5.0" step="0.1" value="0.0">
+
+        <div class="row">
+            <label for="shutterSpeed">Shutter Speed</label>
+            <span class="value" id="shutterSpeedValue">1/125 s</span>
+        </div>
+        <input type="range" id="shutterSpeed" min="0" max="18" step="1" value="5">
+    </div>
+
+    <div class="status" id="status"></div>
+    <div class="annotation">
+        <b>Gradient</b> (top): input linear ramp 0→1 through the ensemble pipeline.
+        <b>Curve</b> (bottom): 6 individual grain classes (faint) + ensemble (thick green).
+        Dashed line at λ_eff=4 (Ag₄ threshold for median grain). Large grains lift the toe; small grains extend the shoulder.
+    </div>
+</div>
+
+<script>
+const gradCanvas = document.getElementById('gradient');
+const gradCtx = gradCanvas.getContext('2d');
+const curveCanvas = document.getElementById('curve');
+const curveCtx = curveCanvas.getContext('2d');
+
+const isoSlider = document.getElementById('filmSpeed');
+const isoValue = document.getElementById('filmSpeedValue');
+const evSlider = document.getElementById('ev');
+const evValue = document.getElementById('evValue');
+const shutterSlider = document.getElementById('shutterSpeed');
+const shutterValue = document.getElementById('shutterSpeedValue');
+const statusDiv = document.getElementById('status');
+
+const ISO_STOPS = [25, 50, 100, 125, 200, 400, 800, 1600, 3200];
+const SHUTTER_SPEEDS = [
+    1 / 4000, 1 / 2000, 1 / 1000, 1 / 500, 1 / 250, 1 / 125,
+    1 / 60, 1 / 30, 1 / 15, 1 / 8, 1 / 4, 1 / 2,
+    1, 2, 4, 8, 15, 30, 60
+];
+
+const GRAIN_CLASSES = [
+    { relSize: 2.0,  weight: 0.08, color: '#ff6b6b' },
+    { relSize: 1.4,  weight: 0.17, color: '#ffa500' },
+    { relSize: 1.0,  weight: 0.25, color: '#ffd700' },
+    { relSize: 0.75, weight: 0.25, color: '#7ec8e3' },
+    { relSize: 0.55, weight: 0.17, color: '#6495ed' },
+    { relSize: 0.35, weight: 0.08, color: '#4169e1' }
+];
+
+function draw() {
+    const iso = ISO_STOPS[parseInt(isoSlider.value, 10)] ?? 125;
+    const sensitivity = (4.0 / 0.18) * (iso / 125.0);
+    const ev = parseFloat(evSlider.value);
+    const expMul = Math.pow(2, ev);
+    const shutter = shutterSpeedSeconds();
+
+    isoValue.innerText = `ISO ${iso}`;
+    evValue.innerText = `${ev >= 0 ? '+' : ''}${ev.toFixed(1)} EV`;
+    shutterValue.innerText = formatShutterSpeed(shutter);
+
+    const gw = gradCanvas.width;
+    const gh = gradCanvas.height;
+    const cw = curveCanvas.width;
+    const ch = curveCanvas.height;
+
+    // ---- gradient strip ----
+    const gradImg = gradCtx.createImageData(gw, gh);
+    for (let y = 0; y < gh; y++) {
+        for (let x = 0; x < gw; x++) {
+            const idx = (y * gw + x) * 4;
+            const luma = x / (gw - 1);
+            const lambdaRef = sensitivity * luma * expMul;
+            const p = ensembleDevelopability(lambdaRef, shutter);
+            const b = Math.round(clamp(p, 0, 1) * 255);
+            gradImg.data[idx] = b;
+            gradImg.data[idx + 1] = b;
+            gradImg.data[idx + 2] = b;
+            gradImg.data[idx + 3] = 255;
+        }
+    }
+    gradCtx.putImageData(gradImg, 0, 0);
+
+    // ---- response curve ----
+    curveCtx.fillStyle = '#191b1f';
+    curveCtx.fillRect(0, 0, cw, ch);
+
+    const margin = { top: 20, right: 30, bottom: 30, left: 55 };
+    const pw = cw - margin.left - margin.right;
+    const ph = ch - margin.top - margin.bottom;
+
+    // grid
+    curveCtx.strokeStyle = 'rgba(255,255,255,0.05)';
+    curveCtx.lineWidth = 1;
+    for (let i = 0; i <= 10; i++) {
+        const y = margin.top + (ph * i) / 10;
+        curveCtx.beginPath(); curveCtx.moveTo(margin.left, y); curveCtx.lineTo(cw - margin.right, y); curveCtx.stroke();
+        curveCtx.fillStyle = '#9b9b9b';
+        curveCtx.font = '10px -apple-system, sans-serif';
+        curveCtx.textAlign = 'right';
+        curveCtx.fillText((1 - i / 10).toFixed(1), margin.left - 6, y + 3);
+    }
+    for (let i = 0; i <= 10; i++) {
+        const x = margin.left + (pw * i) / 10;
+        curveCtx.beginPath(); curveCtx.moveTo(x, margin.top); curveCtx.lineTo(x, ch - margin.bottom); curveCtx.stroke();
+        curveCtx.fillStyle = '#9b9b9b';
+        curveCtx.textAlign = 'center';
+        curveCtx.fillText((i / 10).toFixed(1), x, ch - margin.bottom + 16);
+    }
+
+    // λ_eff=4 marker
+    const lambda4x = findLambdaMarkerX(sensitivity, expMul, shutter, pw, margin.left);
+    if (lambda4x > margin.left && lambda4x < cw - margin.right) {
+        curveCtx.strokeStyle = 'rgba(255,255,255,0.18)';
+        curveCtx.setLineDash([4, 6]);
+        curveCtx.beginPath();
+        curveCtx.moveTo(lambda4x, margin.top);
+        curveCtx.lineTo(lambda4x, ch - margin.bottom);
+        curveCtx.stroke();
+        curveCtx.setLineDash([]);
+        curveCtx.fillStyle = '#9b9b9b';
+        curveCtx.textAlign = 'center';
+        curveCtx.fillText('λ_eff=4', lambda4x, margin.top - 6);
+    }
+
+    // axes
+    curveCtx.strokeStyle = 'rgba(255,255,255,0.15)';
+    curveCtx.lineWidth = 1;
+    curveCtx.beginPath();
+    curveCtx.moveTo(margin.left, margin.top);
+    curveCtx.lineTo(margin.left, ch - margin.bottom);
+    curveCtx.lineTo(cw - margin.right, ch - margin.bottom);
+    curveCtx.stroke();
+    curveCtx.fillStyle = '#9b9b9b';
+    curveCtx.font = '11px -apple-system, sans-serif';
+    curveCtx.textAlign = 'center';
+    curveCtx.fillText('input luma (linear)', cw / 2, ch - 4);
+    curveCtx.save();
+    curveCtx.translate(14, ch / 2);
+    curveCtx.rotate(-Math.PI / 2);
+    curveCtx.fillText('developability P', 0, 0);
+    curveCtx.restore();
+
+    // ---- individual grain class curves (faint, behind ensemble) ----
+    for (const g of GRAIN_CLASSES) {
+        curveCtx.strokeStyle = g.color;
+        curveCtx.globalAlpha = 0.35;
+        curveCtx.lineWidth = 1;
+        curveCtx.beginPath();
+        let first = true;
+        for (let px = 0; px < pw; px++) {
+            const luma = px / (pw - 1);
+            const lambdaI = sensitivity * luma * expMul * g.relSize * g.relSize;
+            const lambdaEff = lambdaI * reciprocityEfficiency(lambdaI, shutter);
+            const p = gurneyMottDevelopability(lambdaEff);
+            const sx = margin.left + px;
+            const sy = margin.top + ph * (1 - p);
+            if (first) { curveCtx.moveTo(sx, sy); first = false; }
+            else curveCtx.lineTo(sx, sy);
+        }
+        curveCtx.stroke();
+    }
+    curveCtx.globalAlpha = 1;
+
+    // ---- ensemble curve (thick, on top) ----
+    curveCtx.strokeStyle = '#00e08a';
+    curveCtx.lineWidth = 2.5;
+    curveCtx.beginPath();
+    let first = true;
+    for (let px = 0; px < pw; px++) {
+        const luma = px / (pw - 1);
+        const lambdaRef = sensitivity * luma * expMul;
+        const p = ensembleDevelopability(lambdaRef, shutter);
+        const sx = margin.left + px;
+        const sy = margin.top + ph * (1 - p);
+        if (first) { curveCtx.moveTo(sx, sy); first = false; }
+        else curveCtx.lineTo(sx, sy);
+    }
+    curveCtx.stroke();
+
+    // stats
+    const lambda18 = sensitivity * 0.18 * expMul;
+    const recip18 = reciprocityEfficiency(lambda18, shutter);
+    const pMid = ensembleDevelopability(lambda18, shutter);
+    const pRef = ensembleDevelopability(sensitivity * 1.0 * expMul, shutter);
+    statusDiv.innerText =
+        `ISO ${iso} · ${ev >= 0 ? '+' : ''}${ev.toFixed(1)} EV · ${formatShutterSpeed(shutter)} · ` +
+        `λ₁₈%=${lambda18.toFixed(1)} · η=${recip18.toFixed(2)} · ` +
+        `P(18%)=${(pMid * 100).toFixed(1)}% · ` +
+        `P(white)=${(pRef * 100).toFixed(1)}%`;
+}
+
+function shutterSpeedSeconds() {
+    return SHUTTER_SPEEDS[parseInt(shutterSlider.value, 10)] ?? (1 / 125);
+}
+
+function formatShutterSpeed(seconds) {
+    if (seconds < 1) return `1/${Math.round(1 / seconds)} s`;
+    return `${seconds} s`;
+}
+
+function findLambdaMarkerX(sensitivity, expMul, shutterSeconds, plotWidth, leftMargin) {
+    // Find where the median grain (relSize=1.0) has effective λ ≈ 4 after reciprocity.
+    let bestX = leftMargin;
+    let bestDelta = Infinity;
+    for (let px = 0; px < plotWidth; px++) {
+        const luma = px / (plotWidth - 1);
+        const lambdaI = sensitivity * luma * expMul;
+        const lambdaEff = lambdaI * reciprocityEfficiency(lambdaI, shutterSeconds);
+        const delta = Math.abs(lambdaEff - 4);
+        if (delta < bestDelta) {
+            bestDelta = delta;
+            bestX = leftMargin + px;
+        }
+    }
+    return bestX;
+}
+
+function ensembleDevelopability(lambdaRef, shutterSeconds) {
+    let p = 0;
+    for (const g of GRAIN_CLASSES) {
+        const lambdaI = lambdaRef * g.relSize * g.relSize;
+        const lambdaEff = (shutterSeconds !== undefined && shutterSeconds > 0)
+            ? lambdaI * reciprocityEfficiency(lambdaI, shutterSeconds)
+            : lambdaI;
+        p += g.weight * gurneyMottDevelopability(lambdaEff);
+    }
+    return p;
+}
+
+function gurneyMottDevelopability(lambda, n = 4) {
+    if (lambda <= 0) return 0;
+    let sum = 0;
+    let term = 1;
+    for (let i = 0; i < n; i++) {
+        sum += term;
+        term *= lambda / (i + 1);
+    }
+    return 1.0 - Math.exp(-lambda) * sum;
+}
+
+function clamp(x, min, max) {
+    return Math.min(max, Math.max(min, x));
+}
+
+function reciprocityEfficiency(lambdaTotal, shutterSeconds) {
+    if (lambdaTotal <= 0) return 1;
+
+    const T = Math.max(shutterSeconds, 1 / 8000);
+
+    // FP4+ measured low-intensity reciprocity (Ta = Tm^1.26)
+    const reciprocityThreshold = 0.5;
+    let eta = 1.0;
+    if (T > reciprocityThreshold) {
+        eta = Math.pow(T / reciprocityThreshold, -0.26);
+    }
+
+    // High-intensity: disabled (Ilford says no correction for 1/2 – 1/10000 s)
+    return clamp(eta, 0, 1);
+}
+
+isoSlider.addEventListener('input', draw);
+evSlider.addEventListener('input', draw);
+shutterSlider.addEventListener('input', draw);
+draw();
+</script>
+</body>
+</html>

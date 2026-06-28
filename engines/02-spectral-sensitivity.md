@@ -29,7 +29,10 @@ blue sky because it cuts the blue the emulsion would otherwise record.
 - `filmBalanceMultipliers()` derives per-channel gains from a Kelvin slider by
   comparing a target white (from `kelvinToSrgbWhite()`, a Tanner Helland
   blackbody approximation) to a 5500 K reference, then luminance-normalizing.
-- `FILTERS` give each optical filter per-channel multipliers plus an EV cost.
+- `FILTERS` give named Wratten B&W contrast filters with published daylight
+  filter factors converted to EV (`ev = -log2(factor)`). The current per-channel
+  multipliers are approximate RGB transmission proxies until the Kodak Wratten
+  diffuse-density curves are digitized and integrated against FP4+.
 - `effectiveSpectralWeights()` multiplies base weights × WB × filter, then
   normalizes the three weights to sum to 1.
 - Pass 1 dots the linear RGB with these weights and applies the exposure
@@ -42,25 +45,27 @@ blue sky because it cuts the blue the emulsion would otherwise record.
   of the physics. Filters reshaping tonal translation (not final color) is
   faithful to how contrast filters actually behave.
 - ✅ Kelvin → white point uses a recognized blackbody approximation.
-- ✅ Film stock weights are now aligned with published spectral sensitivity
-  characteristics: FP4+ (orthodox panchromatic: balanced r/g/b with slight green
-  emphasis) vs HP5+ (extended-red panchromatic: notably more red response).
+- ✅ FP4+ weights are now derived from a digitized Ilford FP4+ spectral
+  sensitivity curve and reduced to RGB weights (`r=0.348, g=0.3672, b=0.2848`,
+  rounded in the UI to `0.35/0.37/0.28`).
 - ⚠️ The continuous `∫…dλ` is collapsed to a 3-sample dot product. With RGB
   input this is unavoidable, but it cannot reproduce metameric effects or sharp
   spectral features (e.g. a deep red filter on a narrow-band source).
-- ❌ Weights are derived from published curve shapes (qualitative alignment), not
-  digitized sensitometric measurements. Filter multipliers and EV costs are
-  hand-tuned approximations of real Wratten filter factors.
+- ✅ Filter EV costs now use named Wratten-style B&W filter factors: #8 yellow
+  2x, #15 deep yellow 3x, #21 orange 4x, #25 red 8x, #58 green 8x, #47 blue 5x.
+- ⚠️ The FP4+ continuous curve is still collapsed to three RGB proxy weights.
+  Filter RGB multipliers are approximate transmission proxies, not digitized
+  spectral curves.
 - ⚠️ Normalizing weights to sum to 1 keeps exposure stable but is a convenience,
   not a physical constraint.
 
 ## Realness rating: 7/10
 
 The architecture mirrors the real exposure integral and the qualitative behavior
-of filters and white balance is correct. Film stock weights are now grounded in
-published spectral characteristics (FP4+ vs HP5+ extended-red response).
-Remaining gaps: unavoidable 3-sample spectral reduction, and weights derived from
-published curve shapes rather than digitized sensitometric data.
+of filters and white balance is correct. FP4+ weights are now grounded in a
+digitized published curve, and filter EV costs use published B&W factors.
+Remaining gaps: unavoidable 3-sample spectral reduction, approximate RGB-primary
+integration, and approximate RGB filter transmission.
 
 ## Roadmap to higher realness
 
@@ -68,8 +73,10 @@ published curve shapes rather than digitized sensitometric data.
   scene SPD from RGB, integrating over wavelength bins.
 - Digitize the published Ilford spectral sensitivity curves and derive exact
   sRGB channel weights by integrating against CIE 1931 color matching functions.
-- Use measured filter transmission curves (Wratten spectral data) instead of
-  hand-tuned RGB multipliers; derive EV factors from transmission integrals.
+- Digitize Kodak Wratten diffuse-density curves, convert density to transmission
+  (`T = 10^-D`), and integrate through FP4+ spectral sensitivity instead of using
+  RGB proxy multipliers. Track source/target details in
+  `docs/digitization-backlog.md`.
 - Use measured/standard illuminant SPDs (D50/D65/Tungsten) rather than a pure
   blackbody approximation.
 

@@ -1,0 +1,1422 @@
+{
+  "film": "FP4 Plus (from datasheet digitization)",
+  "source": "Ilford FP4+ Technical Information sheet",
+  "date": "2026-06-27",
+  "axisX": {
+    "lambdaStart": 350,
+    "lambdaEnd": 700
+  },
+  "refWavelengths": [],
+  "curvePoints": 351,
+  "spectralSensitivity": [
+    {
+      "lambda": 350,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 351,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 352,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 353,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 354,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 355,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 356,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 357,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 358,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 359,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 360,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 361,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 362,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 363,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 364,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 365,
+      "sensitivity": 0.0166
+    },
+    {
+      "lambda": 366,
+      "sensitivity": 0.052
+    },
+    {
+      "lambda": 367,
+      "sensitivity": 0.0874
+    },
+    {
+      "lambda": 368,
+      "sensitivity": 0.1227
+    },
+    {
+      "lambda": 369,
+      "sensitivity": 0.1581
+    },
+    {
+      "lambda": 370,
+      "sensitivity": 0.1899
+    },
+    {
+      "lambda": 371,
+      "sensitivity": 0.2029
+    },
+    {
+      "lambda": 372,
+      "sensitivity": 0.2159
+    },
+    {
+      "lambda": 373,
+      "sensitivity": 0.2289
+    },
+    {
+      "lambda": 374,
+      "sensitivity": 0.2419
+    },
+    {
+      "lambda": 375,
+      "sensitivity": 0.252
+    },
+    {
+      "lambda": 376,
+      "sensitivity": 0.2621
+    },
+    {
+      "lambda": 377,
+      "sensitivity": 0.2722
+    },
+    {
+      "lambda": 378,
+      "sensitivity": 0.2823
+    },
+    {
+      "lambda": 379,
+      "sensitivity": 0.2924
+    },
+    {
+      "lambda": 380,
+      "sensitivity": 0.2924
+    },
+    {
+      "lambda": 381,
+      "sensitivity": 0.2991
+    },
+    {
+      "lambda": 382,
+      "sensitivity": 0.3057
+    },
+    {
+      "lambda": 383,
+      "sensitivity": 0.3124
+    },
+    {
+      "lambda": 384,
+      "sensitivity": 0.319
+    },
+    {
+      "lambda": 385,
+      "sensitivity": 0.3257
+    },
+    {
+      "lambda": 386,
+      "sensitivity": 0.3335
+    },
+    {
+      "lambda": 387,
+      "sensitivity": 0.3413
+    },
+    {
+      "lambda": 388,
+      "sensitivity": 0.349
+    },
+    {
+      "lambda": 389,
+      "sensitivity": 0.3568
+    },
+    {
+      "lambda": 390,
+      "sensitivity": 0.3733
+    },
+    {
+      "lambda": 391,
+      "sensitivity": 0.3819
+    },
+    {
+      "lambda": 392,
+      "sensitivity": 0.3906
+    },
+    {
+      "lambda": 393,
+      "sensitivity": 0.4079
+    },
+    {
+      "lambda": 394,
+      "sensitivity": 0.4253
+    },
+    {
+      "lambda": 395,
+      "sensitivity": 0.4339
+    },
+    {
+      "lambda": 396,
+      "sensitivity": 0.4426
+    },
+    {
+      "lambda": 397,
+      "sensitivity": 0.4513
+    },
+    {
+      "lambda": 398,
+      "sensitivity": 0.4513
+    },
+    {
+      "lambda": 399,
+      "sensitivity": 0.4585
+    },
+    {
+      "lambda": 400,
+      "sensitivity": 0.4657
+    },
+    {
+      "lambda": 401,
+      "sensitivity": 0.473
+    },
+    {
+      "lambda": 402,
+      "sensitivity": 0.4802
+    },
+    {
+      "lambda": 403,
+      "sensitivity": 0.4874
+    },
+    {
+      "lambda": 404,
+      "sensitivity": 0.4905
+    },
+    {
+      "lambda": 405,
+      "sensitivity": 0.4937
+    },
+    {
+      "lambda": 406,
+      "sensitivity": 0.4968
+    },
+    {
+      "lambda": 407,
+      "sensitivity": 0.5
+    },
+    {
+      "lambda": 408,
+      "sensitivity": 0.5031
+    },
+    {
+      "lambda": 409,
+      "sensitivity": 0.5031
+    },
+    {
+      "lambda": 410,
+      "sensitivity": 0.5031
+    },
+    {
+      "lambda": 411,
+      "sensitivity": 0.505
+    },
+    {
+      "lambda": 412,
+      "sensitivity": 0.5069
+    },
+    {
+      "lambda": 413,
+      "sensitivity": 0.5088
+    },
+    {
+      "lambda": 414,
+      "sensitivity": 0.5107
+    },
+    {
+      "lambda": 415,
+      "sensitivity": 0.5126
+    },
+    {
+      "lambda": 416,
+      "sensitivity": 0.5155
+    },
+    {
+      "lambda": 417,
+      "sensitivity": 0.5184
+    },
+    {
+      "lambda": 418,
+      "sensitivity": 0.5213
+    },
+    {
+      "lambda": 419,
+      "sensitivity": 0.5242
+    },
+    {
+      "lambda": 420,
+      "sensitivity": 0.5271
+    },
+    {
+      "lambda": 421,
+      "sensitivity": 0.5271
+    },
+    {
+      "lambda": 422,
+      "sensitivity": 0.5271
+    },
+    {
+      "lambda": 423,
+      "sensitivity": 0.5314
+    },
+    {
+      "lambda": 424,
+      "sensitivity": 0.5357
+    },
+    {
+      "lambda": 425,
+      "sensitivity": 0.5401
+    },
+    {
+      "lambda": 426,
+      "sensitivity": 0.5444
+    },
+    {
+      "lambda": 427,
+      "sensitivity": 0.5545
+    },
+    {
+      "lambda": 428,
+      "sensitivity": 0.5603
+    },
+    {
+      "lambda": 429,
+      "sensitivity": 0.566
+    },
+    {
+      "lambda": 430,
+      "sensitivity": 0.5718
+    },
+    {
+      "lambda": 431,
+      "sensitivity": 0.5776
+    },
+    {
+      "lambda": 432,
+      "sensitivity": 0.5776
+    },
+    {
+      "lambda": 433,
+      "sensitivity": 0.5827
+    },
+    {
+      "lambda": 434,
+      "sensitivity": 0.5877
+    },
+    {
+      "lambda": 435,
+      "sensitivity": 0.5928
+    },
+    {
+      "lambda": 436,
+      "sensitivity": 0.5978
+    },
+    {
+      "lambda": 437,
+      "sensitivity": 0.6029
+    },
+    {
+      "lambda": 438,
+      "sensitivity": 0.6094
+    },
+    {
+      "lambda": 439,
+      "sensitivity": 0.6159
+    },
+    {
+      "lambda": 440,
+      "sensitivity": 0.6224
+    },
+    {
+      "lambda": 441,
+      "sensitivity": 0.6289
+    },
+    {
+      "lambda": 442,
+      "sensitivity": 0.6419
+    },
+    {
+      "lambda": 443,
+      "sensitivity": 0.6484
+    },
+    {
+      "lambda": 444,
+      "sensitivity": 0.6549
+    },
+    {
+      "lambda": 445,
+      "sensitivity": 0.6614
+    },
+    {
+      "lambda": 446,
+      "sensitivity": 0.6679
+    },
+    {
+      "lambda": 447,
+      "sensitivity": 0.6679
+    },
+    {
+      "lambda": 448,
+      "sensitivity": 0.6722
+    },
+    {
+      "lambda": 449,
+      "sensitivity": 0.6765
+    },
+    {
+      "lambda": 450,
+      "sensitivity": 0.6809
+    },
+    {
+      "lambda": 451,
+      "sensitivity": 0.6852
+    },
+    {
+      "lambda": 452,
+      "sensitivity": 0.6895
+    },
+    {
+      "lambda": 453,
+      "sensitivity": 0.6895
+    },
+    {
+      "lambda": 454,
+      "sensitivity": 0.6895
+    },
+    {
+      "lambda": 455,
+      "sensitivity": 0.6924
+    },
+    {
+      "lambda": 456,
+      "sensitivity": 0.6953
+    },
+    {
+      "lambda": 457,
+      "sensitivity": 0.6982
+    },
+    {
+      "lambda": 458,
+      "sensitivity": 0.7011
+    },
+    {
+      "lambda": 459,
+      "sensitivity": 0.704
+    },
+    {
+      "lambda": 460,
+      "sensitivity": 0.704
+    },
+    {
+      "lambda": 461,
+      "sensitivity": 0.7062
+    },
+    {
+      "lambda": 462,
+      "sensitivity": 0.7083
+    },
+    {
+      "lambda": 463,
+      "sensitivity": 0.7105
+    },
+    {
+      "lambda": 464,
+      "sensitivity": 0.7126
+    },
+    {
+      "lambda": 465,
+      "sensitivity": 0.7148
+    },
+    {
+      "lambda": 466,
+      "sensitivity": 0.7148
+    },
+    {
+      "lambda": 467,
+      "sensitivity": 0.7148
+    },
+    {
+      "lambda": 468,
+      "sensitivity": 0.7148
+    },
+    {
+      "lambda": 469,
+      "sensitivity": 0.7148
+    },
+    {
+      "lambda": 470,
+      "sensitivity": 0.7148
+    },
+    {
+      "lambda": 471,
+      "sensitivity": 0.7148
+    },
+    {
+      "lambda": 472,
+      "sensitivity": 0.7148
+    },
+    {
+      "lambda": 473,
+      "sensitivity": 0.7148
+    },
+    {
+      "lambda": 474,
+      "sensitivity": 0.7148
+    },
+    {
+      "lambda": 475,
+      "sensitivity": 0.7148
+    },
+    {
+      "lambda": 476,
+      "sensitivity": 0.7147
+    },
+    {
+      "lambda": 477,
+      "sensitivity": 0.7147
+    },
+    {
+      "lambda": 478,
+      "sensitivity": 0.7147
+    },
+    {
+      "lambda": 479,
+      "sensitivity": 0.7147
+    },
+    {
+      "lambda": 480,
+      "sensitivity": 0.7147
+    },
+    {
+      "lambda": 481,
+      "sensitivity": 0.7147
+    },
+    {
+      "lambda": 482,
+      "sensitivity": 0.7133
+    },
+    {
+      "lambda": 483,
+      "sensitivity": 0.712
+    },
+    {
+      "lambda": 484,
+      "sensitivity": 0.7106
+    },
+    {
+      "lambda": 485,
+      "sensitivity": 0.7093
+    },
+    {
+      "lambda": 486,
+      "sensitivity": 0.7079
+    },
+    {
+      "lambda": 487,
+      "sensitivity": 0.7079
+    },
+    {
+      "lambda": 488,
+      "sensitivity": 0.7079
+    },
+    {
+      "lambda": 489,
+      "sensitivity": 0.7052
+    },
+    {
+      "lambda": 490,
+      "sensitivity": 0.7024
+    },
+    {
+      "lambda": 491,
+      "sensitivity": 0.6997
+    },
+    {
+      "lambda": 492,
+      "sensitivity": 0.6969
+    },
+    {
+      "lambda": 493,
+      "sensitivity": 0.6942
+    },
+    {
+      "lambda": 494,
+      "sensitivity": 0.6942
+    },
+    {
+      "lambda": 495,
+      "sensitivity": 0.6915
+    },
+    {
+      "lambda": 496,
+      "sensitivity": 0.6888
+    },
+    {
+      "lambda": 497,
+      "sensitivity": 0.686
+    },
+    {
+      "lambda": 498,
+      "sensitivity": 0.6833
+    },
+    {
+      "lambda": 499,
+      "sensitivity": 0.6806
+    },
+    {
+      "lambda": 500,
+      "sensitivity": 0.6806
+    },
+    {
+      "lambda": 501,
+      "sensitivity": 0.6809
+    },
+    {
+      "lambda": 502,
+      "sensitivity": 0.6813
+    },
+    {
+      "lambda": 503,
+      "sensitivity": 0.6816
+    },
+    {
+      "lambda": 504,
+      "sensitivity": 0.682
+    },
+    {
+      "lambda": 505,
+      "sensitivity": 0.6823
+    },
+    {
+      "lambda": 506,
+      "sensitivity": 0.6823
+    },
+    {
+      "lambda": 507,
+      "sensitivity": 0.6847
+    },
+    {
+      "lambda": 508,
+      "sensitivity": 0.6871
+    },
+    {
+      "lambda": 509,
+      "sensitivity": 0.6894
+    },
+    {
+      "lambda": 510,
+      "sensitivity": 0.6918
+    },
+    {
+      "lambda": 511,
+      "sensitivity": 0.6942
+    },
+    {
+      "lambda": 512,
+      "sensitivity": 0.6942
+    },
+    {
+      "lambda": 513,
+      "sensitivity": 0.701
+    },
+    {
+      "lambda": 514,
+      "sensitivity": 0.7079
+    },
+    {
+      "lambda": 515,
+      "sensitivity": 0.7147
+    },
+    {
+      "lambda": 516,
+      "sensitivity": 0.7216
+    },
+    {
+      "lambda": 517,
+      "sensitivity": 0.7284
+    },
+    {
+      "lambda": 518,
+      "sensitivity": 0.7284
+    },
+    {
+      "lambda": 519,
+      "sensitivity": 0.7325
+    },
+    {
+      "lambda": 520,
+      "sensitivity": 0.7366
+    },
+    {
+      "lambda": 521,
+      "sensitivity": 0.7406
+    },
+    {
+      "lambda": 522,
+      "sensitivity": 0.7475
+    },
+    {
+      "lambda": 523,
+      "sensitivity": 0.7543
+    },
+    {
+      "lambda": 524,
+      "sensitivity": 0.757
+    },
+    {
+      "lambda": 525,
+      "sensitivity": 0.7598
+    },
+    {
+      "lambda": 526,
+      "sensitivity": 0.7639
+    },
+    {
+      "lambda": 527,
+      "sensitivity": 0.7652
+    },
+    {
+      "lambda": 528,
+      "sensitivity": 0.7666
+    },
+    {
+      "lambda": 529,
+      "sensitivity": 0.7693
+    },
+    {
+      "lambda": 530,
+      "sensitivity": 0.772
+    },
+    {
+      "lambda": 531,
+      "sensitivity": 0.7734
+    },
+    {
+      "lambda": 532,
+      "sensitivity": 0.7747
+    },
+    {
+      "lambda": 533,
+      "sensitivity": 0.7761
+    },
+    {
+      "lambda": 534,
+      "sensitivity": 0.7761
+    },
+    {
+      "lambda": 535,
+      "sensitivity": 0.7761
+    },
+    {
+      "lambda": 536,
+      "sensitivity": 0.7761
+    },
+    {
+      "lambda": 537,
+      "sensitivity": 0.7761
+    },
+    {
+      "lambda": 538,
+      "sensitivity": 0.7747
+    },
+    {
+      "lambda": 539,
+      "sensitivity": 0.7734
+    },
+    {
+      "lambda": 540,
+      "sensitivity": 0.772
+    },
+    {
+      "lambda": 541,
+      "sensitivity": 0.7707
+    },
+    {
+      "lambda": 542,
+      "sensitivity": 0.7693
+    },
+    {
+      "lambda": 543,
+      "sensitivity": 0.7693
+    },
+    {
+      "lambda": 544,
+      "sensitivity": 0.7707
+    },
+    {
+      "lambda": 545,
+      "sensitivity": 0.772
+    },
+    {
+      "lambda": 546,
+      "sensitivity": 0.7734
+    },
+    {
+      "lambda": 547,
+      "sensitivity": 0.7747
+    },
+    {
+      "lambda": 548,
+      "sensitivity": 0.7802
+    },
+    {
+      "lambda": 549,
+      "sensitivity": 0.7843
+    },
+    {
+      "lambda": 550,
+      "sensitivity": 0.7884
+    },
+    {
+      "lambda": 551,
+      "sensitivity": 0.7925
+    },
+    {
+      "lambda": 552,
+      "sensitivity": 0.7966
+    },
+    {
+      "lambda": 553,
+      "sensitivity": 0.7966
+    },
+    {
+      "lambda": 554,
+      "sensitivity": 0.7966
+    },
+    {
+      "lambda": 555,
+      "sensitivity": 0.8021
+    },
+    {
+      "lambda": 556,
+      "sensitivity": 0.8075
+    },
+    {
+      "lambda": 557,
+      "sensitivity": 0.813
+    },
+    {
+      "lambda": 558,
+      "sensitivity": 0.8184
+    },
+    {
+      "lambda": 559,
+      "sensitivity": 0.8239
+    },
+    {
+      "lambda": 560,
+      "sensitivity": 0.8294
+    },
+    {
+      "lambda": 561,
+      "sensitivity": 0.8348
+    },
+    {
+      "lambda": 562,
+      "sensitivity": 0.8403
+    },
+    {
+      "lambda": 563,
+      "sensitivity": 0.8457
+    },
+    {
+      "lambda": 564,
+      "sensitivity": 0.8512
+    },
+    {
+      "lambda": 565,
+      "sensitivity": 0.8512
+    },
+    {
+      "lambda": 566,
+      "sensitivity": 0.8567
+    },
+    {
+      "lambda": 567,
+      "sensitivity": 0.8621
+    },
+    {
+      "lambda": 568,
+      "sensitivity": 0.8676
+    },
+    {
+      "lambda": 569,
+      "sensitivity": 0.873
+    },
+    {
+      "lambda": 570,
+      "sensitivity": 0.8785
+    },
+    {
+      "lambda": 571,
+      "sensitivity": 0.8855
+    },
+    {
+      "lambda": 572,
+      "sensitivity": 0.8925
+    },
+    {
+      "lambda": 573,
+      "sensitivity": 0.8994
+    },
+    {
+      "lambda": 574,
+      "sensitivity": 0.9064
+    },
+    {
+      "lambda": 575,
+      "sensitivity": 0.9134
+    },
+    {
+      "lambda": 576,
+      "sensitivity": 0.9134
+    },
+    {
+      "lambda": 577,
+      "sensitivity": 0.9134
+    },
+    {
+      "lambda": 578,
+      "sensitivity": 0.9213
+    },
+    {
+      "lambda": 579,
+      "sensitivity": 0.9293
+    },
+    {
+      "lambda": 580,
+      "sensitivity": 0.9372
+    },
+    {
+      "lambda": 581,
+      "sensitivity": 0.9452
+    },
+    {
+      "lambda": 582,
+      "sensitivity": 0.9531
+    },
+    {
+      "lambda": 583,
+      "sensitivity": 0.9531
+    },
+    {
+      "lambda": 584,
+      "sensitivity": 0.9531
+    },
+    {
+      "lambda": 585,
+      "sensitivity": 0.9531
+    },
+    {
+      "lambda": 586,
+      "sensitivity": 0.9531
+    },
+    {
+      "lambda": 587,
+      "sensitivity": 0.9573
+    },
+    {
+      "lambda": 588,
+      "sensitivity": 0.9615
+    },
+    {
+      "lambda": 589,
+      "sensitivity": 0.9657
+    },
+    {
+      "lambda": 590,
+      "sensitivity": 0.9699
+    },
+    {
+      "lambda": 591,
+      "sensitivity": 0.9741
+    },
+    {
+      "lambda": 592,
+      "sensitivity": 0.9741
+    },
+    {
+      "lambda": 593,
+      "sensitivity": 0.9741
+    },
+    {
+      "lambda": 594,
+      "sensitivity": 0.9741
+    },
+    {
+      "lambda": 595,
+      "sensitivity": 0.9749
+    },
+    {
+      "lambda": 596,
+      "sensitivity": 0.9758
+    },
+    {
+      "lambda": 597,
+      "sensitivity": 0.9766
+    },
+    {
+      "lambda": 598,
+      "sensitivity": 0.9775
+    },
+    {
+      "lambda": 599,
+      "sensitivity": 0.9783
+    },
+    {
+      "lambda": 600,
+      "sensitivity": 0.9783
+    },
+    {
+      "lambda": 601,
+      "sensitivity": 0.9775
+    },
+    {
+      "lambda": 602,
+      "sensitivity": 0.9766
+    },
+    {
+      "lambda": 603,
+      "sensitivity": 0.9758
+    },
+    {
+      "lambda": 604,
+      "sensitivity": 0.9749
+    },
+    {
+      "lambda": 605,
+      "sensitivity": 0.9741
+    },
+    {
+      "lambda": 606,
+      "sensitivity": 0.9741
+    },
+    {
+      "lambda": 607,
+      "sensitivity": 0.9741
+    },
+    {
+      "lambda": 608,
+      "sensitivity": 0.97
+    },
+    {
+      "lambda": 609,
+      "sensitivity": 0.9659
+    },
+    {
+      "lambda": 610,
+      "sensitivity": 0.9618
+    },
+    {
+      "lambda": 611,
+      "sensitivity": 0.9577
+    },
+    {
+      "lambda": 612,
+      "sensitivity": 0.9536
+    },
+    {
+      "lambda": 613,
+      "sensitivity": 0.9513
+    },
+    {
+      "lambda": 614,
+      "sensitivity": 0.949
+    },
+    {
+      "lambda": 615,
+      "sensitivity": 0.9468
+    },
+    {
+      "lambda": 616,
+      "sensitivity": 0.9445
+    },
+    {
+      "lambda": 617,
+      "sensitivity": 0.9422
+    },
+    {
+      "lambda": 618,
+      "sensitivity": 0.9422
+    },
+    {
+      "lambda": 619,
+      "sensitivity": 0.9422
+    },
+    {
+      "lambda": 620,
+      "sensitivity": 0.9422
+    },
+    {
+      "lambda": 621,
+      "sensitivity": 0.9422
+    },
+    {
+      "lambda": 622,
+      "sensitivity": 0.9422
+    },
+    {
+      "lambda": 623,
+      "sensitivity": 0.9422
+    },
+    {
+      "lambda": 624,
+      "sensitivity": 0.9422
+    },
+    {
+      "lambda": 625,
+      "sensitivity": 0.9422
+    },
+    {
+      "lambda": 626,
+      "sensitivity": 0.9422
+    },
+    {
+      "lambda": 627,
+      "sensitivity": 0.9415
+    },
+    {
+      "lambda": 628,
+      "sensitivity": 0.9408
+    },
+    {
+      "lambda": 629,
+      "sensitivity": 0.94
+    },
+    {
+      "lambda": 630,
+      "sensitivity": 0.9206
+    },
+    {
+      "lambda": 631,
+      "sensitivity": 0.9011
+    },
+    {
+      "lambda": 632,
+      "sensitivity": 0.8823
+    },
+    {
+      "lambda": 633,
+      "sensitivity": 0.8636
+    },
+    {
+      "lambda": 634,
+      "sensitivity": 0.8448
+    },
+    {
+      "lambda": 635,
+      "sensitivity": 0.8304
+    },
+    {
+      "lambda": 636,
+      "sensitivity": 0.8159
+    },
+    {
+      "lambda": 637,
+      "sensitivity": 0.8015
+    },
+    {
+      "lambda": 638,
+      "sensitivity": 0.7683
+    },
+    {
+      "lambda": 639,
+      "sensitivity": 0.735
+    },
+    {
+      "lambda": 640,
+      "sensitivity": 0.7163
+    },
+    {
+      "lambda": 641,
+      "sensitivity": 0.6975
+    },
+    {
+      "lambda": 642,
+      "sensitivity": 0.657
+    },
+    {
+      "lambda": 643,
+      "sensitivity": 0.6354
+    },
+    {
+      "lambda": 644,
+      "sensitivity": 0.6137
+    },
+    {
+      "lambda": 645,
+      "sensitivity": 0.5921
+    },
+    {
+      "lambda": 646,
+      "sensitivity": 0.5488
+    },
+    {
+      "lambda": 647,
+      "sensitivity": 0.5271
+    },
+    {
+      "lambda": 648,
+      "sensitivity": 0.5055
+    },
+    {
+      "lambda": 649,
+      "sensitivity": 0.4838
+    },
+    {
+      "lambda": 650,
+      "sensitivity": 0.4445
+    },
+    {
+      "lambda": 651,
+      "sensitivity": 0.4267
+    },
+    {
+      "lambda": 652,
+      "sensitivity": 0.409
+    },
+    {
+      "lambda": 653,
+      "sensitivity": 0.3685
+    },
+    {
+      "lambda": 654,
+      "sensitivity": 0.3281
+    },
+    {
+      "lambda": 655,
+      "sensitivity": 0.3053
+    },
+    {
+      "lambda": 656,
+      "sensitivity": 0.2682
+    },
+    {
+      "lambda": 657,
+      "sensitivity": 0.231
+    },
+    {
+      "lambda": 658,
+      "sensitivity": 0.2166
+    },
+    {
+      "lambda": 659,
+      "sensitivity": 0.1888
+    },
+    {
+      "lambda": 660,
+      "sensitivity": 0.161
+    },
+    {
+      "lambda": 661,
+      "sensitivity": 0.1364
+    },
+    {
+      "lambda": 662,
+      "sensitivity": 0.0989
+    },
+    {
+      "lambda": 663,
+      "sensitivity": 0.0614
+    },
+    {
+      "lambda": 664,
+      "sensitivity": 0.0372
+    },
+    {
+      "lambda": 665,
+      "sensitivity": 0.013
+    },
+    {
+      "lambda": 666,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 667,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 668,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 669,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 670,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 671,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 672,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 673,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 674,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 675,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 676,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 677,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 678,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 679,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 680,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 681,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 682,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 683,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 684,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 685,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 686,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 687,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 688,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 689,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 690,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 691,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 692,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 693,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 694,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 695,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 696,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 697,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 698,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 699,
+      "sensitivity": 0
+    },
+    {
+      "lambda": 700,
+      "sensitivity": 0
+    }
+  ],
+  "rgbWeights": {
+    "r": 0.348,
+    "g": 0.3672,
+    "b": 0.2848
+  }
+}

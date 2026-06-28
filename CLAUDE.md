@@ -89,7 +89,7 @@ physics. Read the relevant engine doc before working on its code. See
 
 ### Image processing pipeline
 
-Images are capped to 1100 px on the longest edge on load. `buildLinearSourceBuffers()` converts sRGB pixels into three `Float32Array` buffers (`linearR/G/B`) in scene-linear light. All subsequent passes operate on `Float32Array` buffers of size `width × height`.
+Images are capped to 2622 px on the longest edge on load. `buildLinearSourceBuffers()` converts sRGB pixels into three `Float32Array` buffers (`linearR/G/B`) in scene-linear light. All subsequent passes operate on `Float32Array` buffers of size `width × height`.
 
 `processImage()` runs six sequential passes:
 

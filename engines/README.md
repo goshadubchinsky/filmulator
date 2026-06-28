@@ -25,7 +25,7 @@ modeling the cause.
 
 | # | Engine | Realness | One-line assessment |
 |---|--------|:--------:|---------------------|
-| 1 | [Input / Scene-Linear](01-input-scene-linear.md) | 4/10 | sRGB linearization is exact, but a processed 8-bit JPEG is treated as scene radiance |
+| 1 | [Input / Latent Image](01-input-latent-image.md) | 5/10 | sRGB linearization is exact; Poisson Ag₄ + grain ensemble + FP4 spectral mixing + first-order reciprocity; JPEG input and approximate constants cap the rating |
 | 2 | [Spectral Sensitivity](02-spectral-sensitivity.md) | 7/10 | 3-sample RGB integral; weights now aligned with published FP4+/HP5+ spectral characteristics |
 | 3 | [Optical Transport](03-optical-transport.md) | 7/10 | scatter (Gaussian) and halation (Gaussian) both radially symmetric; parameters fitted, not from measured MTF |
 | 4 | [Development](04-development.md) | 9/10 | iterative rxn-diff (5–14 steps, ∝ time); Gaussian Fickian diffusion; first-order kinetics; adjacency emerges |
@@ -39,13 +39,18 @@ and record *why* in that engine's progression log.
 ## Pipeline order
 
 ```
-Input ─▶ Spectral ─▶ Optical Transport ─▶ Development ─▶ Adjacency ─▶ Grain ─▶ Print/Positive ─▶ canvas
- (1)        (2)            (3)                (4)            (5)        (6)          (7)
+Input/Latent Image ─▶ Spectral ─▶ Optical Transport ─▶ Development ─▶ Adjacency ─▶ Grain ─▶ Print/Positive ─▶ canvas
+      (1)               (2)            (3)                (4)            (5)        (6)          (7)
 ```
 
 This maps to the passes inside `processImage()`: Spectral = Pass 1, Optical
 Transport = Pass 2, Development = Passes 3–4, Adjacency = Pass 5, Grain +
 Print/Positive = Pass 6.
+
+> **Current state (2026-06-27):** The main `index.html` is an E1-only latent-image
+> viewer (engine-by-engine rebuild in progress). The full 7-engine pipeline lives
+> in `index-full-archive.html`. The pipeline docs here describe the full system;
+> not all engines are wired in the current entry point.
 
 ## Progression logs
 
